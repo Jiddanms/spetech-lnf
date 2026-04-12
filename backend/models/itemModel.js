@@ -1,0 +1,156 @@
+
+// models/itemModel.js
+// Simple file-based "model" for items (lost/found) used by routes.
+// Provides CRUD helpers and status utilities.
+// Designed to be consistent with server.js and routes/* implementations.
+
+const path = require('path');
+const fs = require('fs-extra');
+const { v4: uuidv4 } = require('uuid');
+
+const APP_ROOT = path.resolve(__dirname, '..');
+const DB_FILE = path.join(APP_ROOT, 'database', 'db.json');
+
+const DEFAULT_STATUS = 'pending';
+const ALLOWED_STATUSES = ['pending', 'verified', 'completed', 'archived', 'deleted'];
+
+/* --- Internal helpers --- */
+async function readDb() {
+  try {
+    const exists = await fs.pathExists(DB_FILE);
+    if (!exists) return { users: [], items: [] };
+    return await fs.readJson(DB_FILE);
+  } catch (err) {
+    console.error('itemModel.readDb error', err);
+    return { users: [], items: [] };
+  }
+}
+
+async function writeDb(data) {
+  await fs.ensureFile(DB_FILE);
+  await fs.writeJson(DB_FILE, data, { spaces: 2 });
+}
+
+/* --- Model API --- */
+
+/**
+ * createItem(data)
+ * data: { name, description, location, contact?, photo?, type: 'lost'|'found' }
+ * returns created item
+ */
+async function createItem(data = {}) {
+  const { name, description, location, contact = '', photo = null, type = 'lost' } = data;
+  if (!name || !description || !location) {
+    throw new Error('Field wajib: name, description, location');
+  }
+  const db = await readDb();
+  db.items = db.items || [];
+
+  const item = {
+    id: uuidv4(),
+    name: String(name).trim(),
+    description: String(description).trim(),
+    location: String(location).trim(),
+    contact: contact ? String(contact).trim() : '',
+    photo: photo || null,
+    type: (type === 'found') ? 'found' : 'lost',
+    status: DEFAULT_STATUS,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  // newest first
+  db.items.unshift(item);
+  await writeDb(db);
+  return item;
+}
+
+/**
+ * listItems(filter)
+ * filter: { type?: 'lost'|'found', status?: string, includeDeleted?: boolean }
+ * returns array of items
+ */
+async function listItems(filter = {}) {
+  const { type, status, includeDeleted = false } = filter;
+  const db = await readDb();
+  let items = Array.isArray(db.items) ? db.items.slice() : [];
+
+  if (!includeDeleted) {
+    items = items.filter(i => (i.status || '').toLowerCase() !== 'deleted');
+  }
+
+  if (type) {
+    items = items.filter(i => i.type === type);
+  }
+  if (status && status !== 'all') {
+    items = items.filter(i => (i.status || '').toLowerCase() === String(status).toLowerCase());
+  }
+  return items;
+}
+
+/**
+ * getItemById(id)
+ */
+async function getItemById(id) {
+  const db = await readDb();
+  return (db.items || []).find(i => i.id === id) || null;
+}
+
+/**
+ * updateItem(id, updates)
+ * updates: partial fields to update (name, description, location, contact, photo, status)
+ */
+async function updateItem(id, updates = {}) {
+  const db = await readDb();
+  db.items = db.items || [];
+  const idx = db.items.findIndex(i => i.id === id);
+  if (idx === -1) return null;
+
+  const item = db.items[idx];
+  const allowedFields = ['name','description','location','contact','photo','status','type'];
+  for (const k of Object.keys(updates)) {
+    if (!allowedFields.includes(k)) continue;
+    if (k === 'status') {
+      const s = String(updates.status).toLowerCase();
+      if (!ALLOWED_STATUSES.includes(s)) throw new Error('Status tidak valid');
+      item.status = s;
+    } else if (k === 'type') {
+      item.type = (updates.type === 'found') ? 'found' : 'lost';
+    } else {
+      item[k] = updates[k];
+    }
+  }
+  item.updatedAt = new Date().toISOString();
+  db.items[idx] = item;
+  await writeDb(db);
+  return item;
+}
+
+/**
+ * softDeleteItem(id)
+ * marks item status as 'deleted'
+ */
+async function softDeleteItem(id) {
+  return updateItem(id, { status: 'deleted' });
+}
+
+/**
+ * recentItems({ type, limit })
+ */
+async function recentItems(opts = {}) {
+  const { type, limit = 8 } = opts;
+  const items = await listItems({ type, includeDeleted: false });
+  return items.slice(0, limit);
+}
+
+/* --- Exported API --- */
+module.exports = {
+  createItem,
+  listItems,
+  getItemById,
+  updateItem,
+  softDeleteItem,
+  recentItems,
+  ALLOWED_STATUSES,
+  DEFAULT_STATUS
+};

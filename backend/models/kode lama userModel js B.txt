@@ -1,0 +1,201 @@
+
+
+// models/userModel.js
+// File-based user model for Spetech Lost and Found Web
+// - Provides user CRUD, authentication helpers, and seeding helper for init
+// - Works with DB file at /database/db.json
+
+const path = require('path');
+const fs = require('fs-extra');
+const bcrypt = require('bcrypt');
+const { v4: uuidv4 } = require('uuid');
+
+const APP_ROOT = path.resolve(__dirname, '..');
+const DB_FILE = path.join(APP_ROOT, 'database', 'db.json');
+const SALT_ROUNDS = 10;
+
+/* --- Internal helpers --- */
+async function readDb() {
+  try {
+    const exists = await fs.pathExists(DB_FILE);
+    if (!exists) return { users: [], items: [], sessions: [] };
+    const data = await fs.readJson(DB_FILE);
+    // normalize shape
+    data.users = Array.isArray(data.users) ? data.users : [];
+    data.items = Array.isArray(data.items) ? data.items : [];
+    data.sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    return data;
+  } catch (err) {
+    console.error('userModel.readDb error', err);
+    return { users: [], items: [], sessions: [] };
+  }
+}
+
+async function writeDb(data) {
+  await fs.ensureFile(DB_FILE);
+  // ensure arrays exist to avoid corrupting shape
+  data.users = Array.isArray(data.users) ? data.users : [];
+  data.items = Array.isArray(data.items) ? data.items : [];
+  data.sessions = Array.isArray(data.sessions) ? data.sessions : [];
+  await fs.writeJson(DB_FILE, data, { spaces: 2 });
+}
+
+/* --- Model API --- */
+
+/**
+ * createUser({ username, password, role })
+ * - hashes password and stores user
+ * - returns safe user object (without password)
+ */
+async function createUser({ username, password, role = 'user' } = {}) {
+  if (!username || !password) throw new Error('Username and password are required');
+  const db = await readDb();
+  db.users = db.users || [];
+
+  const exists = db.users.find(u => u.username.toLowerCase() === String(username).toLowerCase());
+  if (exists) throw new Error('Username already exists');
+
+  const hashed = await bcrypt.hash(String(password), SALT_ROUNDS);
+  const user = {
+    id: uuidv4(),
+    username: String(username).trim(),
+    password: hashed,
+    role: String(role).trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.users.push(user);
+  await writeDb(db);
+
+  return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt };
+}
+
+/**
+ * findUserByUsername(username)
+ * - returns full user object (including hashed password) or null
+ */
+async function findUserByUsername(username) {
+  if (!username) return null;
+  const db = await readDb();
+  db.users = db.users || [];
+  return db.users.find(u => u.username.toLowerCase() === String(username).toLowerCase()) || null;
+}
+
+/**
+ * getUserSafe(id)
+ * - returns user object without password
+ */
+async function getUserSafe(id) {
+  const db = await readDb();
+  db.users = db.users || [];
+  const u = db.users.find(x => x.id === id);
+  if (!u) return null;
+  return { id: u.id, username: u.username, role: u.role, createdAt: u.createdAt };
+}
+
+/**
+ * authenticateUser(username, password)
+ * - verifies password, returns safe user on success, null on failure
+ */
+async function authenticateUser(username, password) {
+  const user = await findUserByUsername(username);
+  if (!user) return null;
+  const match = await bcrypt.compare(String(password), user.password);
+  if (!match) return null;
+  return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt };
+}
+
+/**
+ * listUsers({ includePasswords = false })
+ * - returns array of users; by default hides password
+ */
+async function listUsers(opts = {}) {
+  const { includePasswords = false } = opts;
+  const db = await readDb();
+  db.users = db.users || [];
+  if (includePasswords) return db.users.slice();
+  return db.users.map(u => ({ id: u.id, username: u.username, role: u.role, createdAt: u.createdAt }));
+}
+
+/**
+ * updateUserRole(id, newRole)
+ * - updates role field
+ */
+async function updateUserRole(id, newRole) {
+  if (!id || !newRole) throw new Error('id and newRole required');
+  const db = await readDb();
+  db.users = db.users || [];
+  const idx = db.users.findIndex(u => u.id === id);
+  if (idx === -1) return null;
+  db.users[idx].role = String(newRole).trim();
+  db.users[idx].updatedAt = new Date().toISOString();
+  await writeDb(db);
+  return { id: db.users[idx].id, username: db.users[idx].username, role: db.users[idx].role };
+}
+
+/**
+ * deleteUser(id)
+ * - removes user from DB (prototype behavior)
+ */
+async function deleteUser(id) {
+  if (!id) throw new Error('id required');
+  const db = await readDb();
+  db.users = db.users || [];
+  const idx = db.users.findIndex(u => u.id === id);
+  if (idx === -1) return false;
+  db.users.splice(idx, 1);
+  await writeDb(db);
+  return true;
+}
+
+/* --- New: seed default users for init (idempotent) --- */
+/**
+ * seedDefaultUsers({ adminPassword, userPassword })
+ * - creates default admin and user only if users array is empty or usernames missing
+ * - returns array of created safe users (may be empty if already present)
+ */
+async function seedDefaultUsers({ adminPassword = 'admin123', userPassword = 'user123' } = {}) {
+  const db = await readDb();
+  db.users = db.users || [];
+
+  const created = [];
+
+  const hasAdmin = db.users.some(u => u.username.toLowerCase() === 'admin');
+  const hasUser = db.users.some(u => u.username.toLowerCase() === 'user');
+
+  if (!hasAdmin) {
+    try {
+      const admin = await createUser({ username: 'admin', password: adminPassword, role: 'admin' });
+      created.push(admin);
+    } catch (e) {
+      // if race or exists, ignore
+      console.warn('seedDefaultUsers: admin create skipped:', e.message);
+    }
+  }
+
+  if (!hasUser) {
+    try {
+      const user = await createUser({ username: 'user', password: userPassword, role: 'user' });
+      created.push(user);
+    } catch (e) {
+      console.warn('seedDefaultUsers: user create skipped:', e.message);
+    }
+  }
+
+  return created;
+}
+
+/* --- Export --- */
+module.exports = {
+  createUser,
+  findUserByUsername,
+  getUserSafe,
+  authenticateUser,
+  listUsers,
+  updateUserRole,
+  deleteUser,
+  seedDefaultUsers
+};
+
+
