@@ -2,7 +2,7 @@
 {
   "name": "spetech-lnf-web",
   "version": "1.0.0",
-  "description": "Spetech Lost & Found Web (prototype) — dark theme, QR reporting, admin workflows",
+  "description": "Spetech Lost & Found Web",
   "main": "server.js",
   "engines": {
     "node": ">=14"
