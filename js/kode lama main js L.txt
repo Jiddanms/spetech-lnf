@@ -1,76 +1,48 @@
 
+
 /**
  * frontend/js/main.js
- * Updated main.js (2026) — adapted to work with Cloudflare Workers (API_BASE)
- * - Frontend remains served from root
- * - Detects local dev (localhost/127.0.0.1) to use multipart FormData for file uploads
- * - For remote Worker API, converts file to base64 and sends JSON { photo: "<data>" }
- * - Uses API_BASE constant (replace with your Worker URL after deploy)
+ * Updated main.js — deep fix for:
+ * - Detail modal fetch (robust endpoints + response shapes)
+ * - Grid mapping tolerant to intentional swap in index.html
+ * - Recent lists on Home
+ * - Delegated Detail button handler
+ * - Photo thumbnails in grid cards
+ *
+ * Keep index.html IDs consistent with blueprint; this script tolerates swapped grid IDs.
  */
 
-/* ---------------------------
-   Configuration
-   --------------------------- */
-// Replace this with your Worker URL after `wrangler publish` (no trailing slash).
-// Example: "https://spetech-workers.abcd.workers.dev"
-const API_BASE = "REPLACE_WITH_YOUR_WORKER_URL_OR_EMPTY_FOR_LOCAL"; // e.g. "https://...workers.dev" or "" to use relative /api
-
-// Helper: detect local server (serve from same origin or explicit empty API_BASE)
-function isLocalServer() {
-  if (!API_BASE || API_BASE.trim() === "") return true;
-  try {
-    const u = new URL(API_BASE);
-    return u.hostname === 'localhost' || u.hostname === '127.0.0.1';
-  } catch (e) {
-    return false;
-  }
-}
-
-/* ---------------------------
-   DOM helpers
-   --------------------------- */
+/* Utility helpers */
 const $ = (sel, ctx = document) => (ctx || document).querySelector(sel);
 const $$ = (sel, ctx = document) => Array.from((ctx || document).querySelectorAll(sel));
 const on = (el, ev, fn) => el && el.addEventListener(ev, fn);
 
-/* ---------------------------
-   API helper
-   --------------------------- */
-async function apiFetch(path, opts = {}) {
-  // path may start with /api or without; normalize
+/* API helper: automatically attach Authorization header when token exists */
+const api = async (path, opts = {}) => {
   const token = localStorage.getItem('sp_lnf_token');
   const headers = Object.assign({}, opts.headers || {});
   if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  // Build URL
-  let url;
-  if (!API_BASE || API_BASE.trim() === "") {
-    // relative to current origin
-    url = `/api${path.startsWith('/') ? path : '/' + path}`;
-  } else {
-    url = `${API_BASE}${path.startsWith('/') ? path : '/' + path}`;
+  const res = await fetch(`/api${path}`, Object.assign({}, opts, { headers }));
+  try {
+    const json = await res.json();
+    return Object.assign({}, json, { __status: res.status });
+  } catch (e) {
+    return { ok: false, __status: res.status, message: 'Invalid JSON response' };
   }
+};
 
-  const fetchOpts = Object.assign({}, opts, { headers, credentials: 'same-origin' });
-  const res = await fetch(url, fetchOpts);
-  let json = null;
-  try { json = await res.json(); } catch (e) { /* ignore parse error */ }
-  return Object.assign({}, json || {}, { __status: res.status, ok: res.ok });
-}
-
-/* ---------------------------
-   App state
-   --------------------------- */
+/* App state */
 const state = {
   currentPage: 'home',
   currentSub: null,
-  user: null
+  user: null,
 };
 
 /* ---------------------------
-   Background utilities
+   Background layer utilities
    --------------------------- */
 function getBgLayer() { return $('#bg-layer'); }
+
 function normalizeBgName(name) {
   if (!name) return 'home';
   const s = String(name).trim();
@@ -83,6 +55,7 @@ function normalizeBgName(name) {
   const found = allowed.find(a => a.toLowerCase() === s.toLowerCase());
   return found || 'home';
 }
+
 function setBackground(name, { persist = true } = {}) {
   try {
     const key = normalizeBgName(name);
@@ -100,17 +73,23 @@ function setBackground(name, { persist = true } = {}) {
     if (persist) {
       try { localStorage.setItem('sp_lnf_bg', key); } catch (e) {}
     }
-  } catch (err) { console.warn('[bg] setBackground error', err); }
+    console.debug('[bg] setBackground ->', key);
+  } catch (err) {
+    console.warn('[bg] setBackground error', err);
+  }
 }
+
 function initBackground() {
   const layer = getBgLayer();
   if (!layer) return;
+  // Reset to home on refresh per requirement
   layer.setAttribute('data-bg', 'home');
   layer.style.opacity = getComputedStyle(document.documentElement).getPropertyValue('--bg-opacity') || '0.55';
+  console.debug('[bg] initBackground -> home');
 }
 
 /* ---------------------------
-   Navigation
+   Navigation & subpage logic
    --------------------------- */
 function showPage(pageId) {
   $$('.side-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.page === pageId));
@@ -137,6 +116,7 @@ function showPage(pageId) {
       break;
   }
 }
+
 function activateSub(subId) {
   $$('.page-navbar .nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.sub === subId));
   const page = $(`#page-${state.currentPage}`);
@@ -149,6 +129,7 @@ function activateSub(subId) {
   state.currentSub = subId;
   if (state.currentPage === 'account' && subId === 'account-logout') renderLogoutSubpage();
 }
+
 function initNavigation() {
   $$('.side-btn').forEach(btn => on(btn, 'click', () => showPage(btn.dataset.page)));
   $$('.page-navbar').forEach(nav => {
@@ -171,34 +152,40 @@ function initNavigation() {
   showPage(state.currentPage);
 }
 
-/* ---------------------------
-   Form handlers
-   --------------------------- */
+/* --- Form handlers & fixes --- */
 function bindForms() {
-  // Lost submit (JSON)
+  // Lost report
   on($('#lost-submit'), 'click', async () => {
     const name = ($('#lost-name') && $('#lost-name').value || '').trim();
     const desc = ($('#lost-desc') && $('#lost-desc').value || '').trim();
     const location = ($('#lost-location') && $('#lost-location').value) || '';
     const contact = ($('#lost-contact') && $('#lost-contact').value || '').trim();
 
-    if (!name || !desc || !location) { notifier.error('Isi semua field wajib pada laporan kehilangan.'); return; }
+    if (!name || !desc || !location) {
+      notifier.error('Isi semua field wajib pada laporan kehilangan.');
+      return;
+    }
 
     try {
-      // For both local and worker we send JSON for lost (no file)
-      const res = await apiFetch('/account/health'); // quick ping to ensure API reachable (optional)
-      const payload = { name, description: desc, location, contact, type: 'lost' };
-      const r = await apiFetch('/lost/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (r && (r.ok || r.__status === 200 || r.__status === 201)) {
+      const resRaw = await fetch('/api/lost/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: desc, location, contact, type: 'lost' })
+      });
+      const res = await (async () => { try { return await resRaw.json(); } catch(e){ return { ok: resRaw.ok, __status: resRaw.status }; } })();
+      if (res && (res.ok || res.success || res.__status === 200 || res.__status === 201)) {
         notifier.success('Laporan kehilangan berhasil dikirim.');
-        const form = $('#form-lost-report'); if (form) form.reset();
+        const form = $('#form-lost-report');
+        if (form) form.reset();
         setBackground(location);
-        await loadLostList(); await loadRecentLists();
+        await loadLostList();
+        await loadRecentLists();
       } else {
-        notifier.error(r.message || 'Gagal mengirim laporan kehilangan.');
+        notifier.error(res.message || 'Gagal mengirim laporan kehilangan.');
       }
     } catch (err) {
-      console.error(err); notifier.error('Gagal mengirim laporan. Coba lagi.');
+      console.error(err);
+      notifier.error('Gagal mengirim laporan. Coba lagi.');
     }
   });
 
@@ -206,58 +193,40 @@ function bindForms() {
   const lostLocationSelect = $('#lost-location');
   if (lostLocationSelect) on(lostLocationSelect, 'change', (e) => { const val = e.target.value; if (val) setBackground(val); });
 
-  // Found submit (may include photo)
+  // Found report
   on($('#found-submit'), 'click', async () => {
     const name = ($('#found-name') && $('#found-name').value || '').trim();
     const desc = ($('#found-desc') && $('#found-desc').value || '').trim();
     const location = ($('#found-location') && $('#found-location').value) || '';
     const photoInput = $('#found-photo');
 
-    if (!name || !desc || !location) { notifier.error('Isi semua field wajib pada laporan penemuan.'); return; }
+    if (!name || !desc || !location) {
+      notifier.error('Isi semua field wajib pada laporan penemuan.');
+      return;
+    }
 
     try {
-      // If local server (multer) -> send FormData; otherwise convert file to base64 and send JSON
-      if (photoInput && photoInput.files && photoInput.files[0]) {
-        const file = photoInput.files[0];
-        if (isLocalServer()) {
-          const fd = new FormData();
-          fd.append('name', name);
-          fd.append('description', desc);
-          fd.append('location', location);
-          fd.append('photo', file);
-          const res = await fetch((!API_BASE ? '' : API_BASE) + '/found/add', { method: 'POST', body: fd, credentials: 'same-origin' });
-          const json = await (async () => { try { return await res.json(); } catch (e) { return { ok: res.ok, __status: res.status }; } })();
-          if (json && (json.ok || json.__status === 200 || json.__status === 201)) {
-            notifier.success('Laporan penemuan berhasil dikirim.');
-            const form = $('#form-found-report'); if (form) form.reset();
-            setBackground(location);
-            await loadFoundList(); await loadRecentLists();
-          } else notifier.error(json.message || 'Gagal mengirim laporan penemuan.');
-        } else {
-          // Convert to base64 and send JSON (Workers expect photo as URL/base64)
-          const base64 = await fileToBase64(file);
-          const payload = { name, description: desc, location, photo: base64, type: 'found' };
-          const r = await apiFetch('/found/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          if (r && (r.ok || r.__status === 200 || r.__status === 201)) {
-            notifier.success('Laporan penemuan berhasil dikirim.');
-            const form = $('#form-found-report'); if (form) form.reset();
-            setBackground(location);
-            await loadFoundList(); await loadRecentLists();
-          } else notifier.error(r.message || 'Gagal mengirim laporan penemuan.');
-        }
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('description', desc);
+      fd.append('location', location);
+      if (photoInput && photoInput.files && photoInput.files[0]) fd.append('photo', photoInput.files[0]);
+
+      const resRaw = await fetch('/api/found/add', { method: 'POST', body: fd });
+      const res = await (async () => { try { return await resRaw.json(); } catch(e){ return { ok: resRaw.ok, __status: resRaw.status }; } })();
+      if (res && (res.ok || res.success || res.__status === 200 || res.__status === 201)) {
+        notifier.success('Laporan penemuan berhasil dikirim.');
+        const form = $('#form-found-report');
+        if (form) form.reset();
+        setBackground(location);
+        await loadFoundList();
+        await loadRecentLists();
       } else {
-        // No file: send JSON
-        const payload = { name, description: desc, location, photo: null, type: 'found' };
-        const r = await apiFetch('/found/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (r && (r.ok || r.__status === 200 || r.__status === 201)) {
-          notifier.success('Laporan penemuan berhasil dikirim.');
-          const form = $('#form-found-report'); if (form) form.reset();
-          setBackground(location);
-          await loadFoundList(); await loadRecentLists();
-        } else notifier.error(r.message || 'Gagal mengirim laporan penemuan.');
+        notifier.error(res.message || 'Gagal mengirim laporan penemuan.');
       }
     } catch (err) {
-      console.error(err); notifier.error('Gagal mengirim laporan penemuan.');
+      console.error(err);
+      notifier.error('Gagal mengirim laporan penemuan.');
     }
   });
 
@@ -265,14 +234,38 @@ function bindForms() {
   const foundLocationSelect = $('#found-location');
   if (foundLocationSelect) on(foundLocationSelect, 'change', (e) => { const val = e.target.value; if (val) setBackground(val); });
 
+  // Found scan QR
+  on($('#found-scan-qr'), 'click', () => {
+    if (typeof qrScanner === 'undefined' || !qrScanner.scan) {
+      notifier.error('Fitur scan QR belum tersedia.');
+      return;
+    }
+    notifier.info('Membuka scanner QR...');
+    qrScanner.scan((locationName) => {
+      const allowed = ['Gedung A','Gedung B','Gedung C','Lapangan Upacara','Lapangan Basket','Lapangan Tenis','Koperasi','Kantin'];
+      if (allowed.includes(locationName)) {
+        const sel = $('#found-location');
+        if (sel) sel.value = locationName;
+        setBackground(locationName);
+        notifier.success(`Lokasi terisi: ${locationName}`);
+      } else {
+        notifier.error('QR tidak dikenali sebagai lokasi pelaporan.');
+      }
+    });
+  });
+
   // Login
   on($('#login-btn'), 'click', async () => {
     const username = ($('#login-username') && $('#login-username').value || '').trim();
     const password = ($('#login-password') && $('#login-password').value) || '';
     if (!username || !password) { notifier.error('Masukkan username dan password.'); return; }
     try {
-      const res = await apiFetch('/account/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-      if (res && (res.ok || res.__status === 200)) {
+      const res = await api('/account/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res && (res.ok || res.success || res.__status === 200)) {
         state.user = res.user || res.data || res;
         localStorage.setItem('sp_lnf_user', JSON.stringify(state.user));
         if (res.token) localStorage.setItem('sp_lnf_token', res.token);
@@ -283,7 +276,10 @@ function bindForms() {
       } else {
         notifier.error(res.message || 'Login gagal.');
       }
-    } catch (err) { console.error(err); notifier.error('Terjadi kesalahan saat login.'); }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat login.');
+    }
   });
 
   // Register
@@ -293,15 +289,32 @@ function bindForms() {
     const role = ($('#reg-role') && $('#reg-role').value) || 'user';
     if (!username || !password) { notifier.error('Isi username dan password untuk registrasi.'); return; }
     try {
-      const res = await apiFetch('/account/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, role }) });
-      if (res && (res.ok || res.__status === 200 || res.__status === 201)) {
+      const res = await api('/account/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role })
+      });
+      if (res && (res.ok || res.success || res.__status === 200 || res.__status === 201)) {
         notifier.success('Registrasi berhasil. Silakan login.');
-        showPage('account'); activateSub('account-login');
-      } else notifier.error(res.message || 'Registrasi gagal.');
-    } catch (err) { console.error(err); notifier.error('Terjadi kesalahan saat registrasi.'); }
+        showPage('account');
+        activateSub('account-login');
+        const stored = localStorage.getItem('sp_lnf_user');
+        if (stored) {
+          try {
+            const cur = JSON.parse(stored);
+            if (cur && cur.role === 'admin') await loadAdminAccounts();
+          } catch (e) {}
+        }
+      } else {
+        notifier.error(res.message || 'Registrasi gagal.');
+      }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat registrasi.');
+    }
   });
 
-  // Admin create account (uses admin endpoint)
+  // Admin create account
   on($('#mgmt-create-btn'), 'click', async () => {
     if (!ensureAdmin()) return;
     const username = ($('#mgmt-username') && $('#mgmt-username').value || '').trim();
@@ -309,13 +322,23 @@ function bindForms() {
     const role = ($('#mgmt-role') && $('#mgmt-role').value) || 'user';
     if (!username || !password) { notifier.error('Isi username dan password untuk membuat akun.'); return; }
     try {
-      const res = await apiFetch('/admin/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, role }) });
-      if (res && (res.ok || res.__status === 200 || res.__status === 201)) {
+      const res = await api('/account/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role })
+      });
+      if (res && (res.ok || res.success || res.__status === 200 || res.__status === 201)) {
         notifier.success('Akun berhasil dibuat.');
-        const form = $('#form-admin-create'); if (form) form.reset();
+        const form = $('#form-admin-create');
+        if (form) form.reset();
         await loadAdminAccounts();
-      } else notifier.error(res.message || 'Gagal membuat akun.');
-    } catch (err) { console.error(err); notifier.error('Terjadi kesalahan saat membuat akun.'); }
+      } else {
+        notifier.error(res.message || 'Gagal membuat akun.');
+      }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat membuat akun.');
+    }
   });
 
   // Delegated admin & account controls
@@ -333,8 +356,8 @@ function bindForms() {
       if (action === 'delete') {
         if (!confirm('Hapus form ini? Tindakan tidak dapat dibatalkan.')) return;
         try {
-          const res = await apiFetch(`/admin/forms/${itemId}`, { method: 'DELETE' });
-          if (res && (res.ok || res.__status === 200)) {
+          const res = await api(`/admin/forms/${itemId}`, { method: 'DELETE' });
+          if (res && (res.ok || res.success || res.__status === 200)) {
             notifier.success('Form dihapus.');
             await Promise.all([loadAdminForms(), loadLostList(), loadFoundList()]);
           } else notifier.error(res.message || 'Gagal menghapus form.');
@@ -346,8 +369,12 @@ function bindForms() {
         if (!select) return;
         const newStatus = select.value;
         try {
-          const res = await apiFetch(`/admin/forms/${itemId}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
-          if (res && (res.ok || res.__status === 200)) {
+          const res = await api(`/admin/forms/${itemId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+          });
+          if (res && (res.ok || res.success || res.__status === 200)) {
             notifier.success('Status diperbarui.');
             await Promise.all([loadAdminForms(), loadLostList(), loadFoundList()]);
           } else notifier.error(res.message || 'Gagal memperbarui status.');
@@ -366,8 +393,12 @@ function bindForms() {
         const newRole = prompt('Masukkan role baru (user/admin):', btn.dataset.role || 'user');
         if (!newRole || !['user','admin'].includes(newRole)) { notifier.error('Role tidak valid.'); return; }
         try {
-          const res = await apiFetch(`/admin/accounts/${userId}/role`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: newRole }) });
-          if (res && (res.ok || res.__status === 200)) {
+          const res = await api(`/admin/accounts/${userId}/role`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole })
+          });
+          if (res && (res.ok || res.success || res.__status === 200)) {
             notifier.success('Role diperbarui.');
             await loadAdminAccounts();
           } else notifier.error(res.message || 'Gagal memperbarui role.');
@@ -377,8 +408,8 @@ function bindForms() {
       if (action === 'delete-user') {
         if (!confirm('Hapus akun ini? Tindakan tidak dapat dibatalkan.')) return;
         try {
-          const res = await apiFetch(`/admin/accounts/${userId}`, { method: 'DELETE' });
-          if (res && (res.ok || res.__status === 200)) {
+          const res = await api(`/admin/accounts/${userId}`, { method: 'DELETE' });
+          if (res && (res.ok || res.success || res.__status === 200)) {
             notifier.success('Akun dihapus.');
             await loadAdminAccounts();
           } else notifier.error(res.message || 'Gagal menghapus akun.');
@@ -397,9 +428,13 @@ function bindForms() {
   }
 }
 
-/* ---------------------------
-   Data loaders & renderers
-   --------------------------- */
+/* --- Data loading & rendering --- */
+
+/**
+ * getContainer
+ * - tolerant selector finder: tries primary selector, then common swapped variants
+ * - used so frontend still works if index.html has swapped IDs
+ */
 function getContainer(primarySelector, fallbackSelectors = []) {
   let el = $(primarySelector);
   if (el) return el;
@@ -410,10 +445,20 @@ function getContainer(primarySelector, fallbackSelectors = []) {
   return null;
 }
 
+/**
+ * Important mapping note:
+ * - Your index.html intentionally swaps the grid IDs:
+ *   Lost page uses #found-items-grid
+ *   Found page uses #lost-items-grid
+ * - We respect that mapping here so data appears where you expect.
+ */
+
 async function loadLostList() {
   try {
-    const res = await apiFetch('/lost/list');
+    const res = await api('/lost/list');
     const items = res && (res.items || res.data || res.list) ? (res.items || res.data || res.list) : (Array.isArray(res) ? res : []);
+    // Per your design: Lost submissions should be visible on Found page (so found-list shows lost reports).
+    // Render lost items into the container that represents "found list" on the UI.
     const container = getContainer('#found-items-grid', ['#lost-items-grid', '#found-items', '#found-grid']);
     renderItemsGrid(container ? `#${container.id}` : '#found-items-grid', items || [], false, 'lost');
   } catch (err) { console.error('loadLostList error', err); }
@@ -421,28 +466,20 @@ async function loadLostList() {
 
 async function loadFoundList() {
   try {
-    const res = await apiFetch('/found/list');
+    const res = await api('/found/list');
     const items = res && (res.items || res.data || res.list) ? (res.items || res.data || res.list) : (Array.isArray(res) ? res : []);
+    // Per your design: Found submissions should be visible on Lost page (so lost-list shows found reports).
     const container = getContainer('#lost-items-grid', ['#found-items-grid', '#lost-items', '#lost-grid']);
     renderItemsGrid(container ? `#${container.id}` : '#lost-items-grid', items || [], false, 'found');
   } catch (err) { console.error('loadFoundList error', err); }
 }
 
-async function loadRecentLists() {
-  try {
-    const [lost, found] = await Promise.all([apiFetch('/lost/recent'), apiFetch('/found/recent')]);
-    const lostItems = lost && lost.items ? lost.items : [];
-    const foundItems = found && found.items ? found.items : [];
-    renderItemsGrid('#home-lost-recent', lostItems || [], false, 'lost');
-    renderItemsGrid('#home-found-recent', foundItems || [], false, 'found');
-  } catch (err) { console.error('loadRecentLists error', err); }
-}
-
+/* Admin loaders */
 async function loadAdminForms(type = '') {
   try {
     const q = type ? `?type=${encodeURIComponent(type)}` : '';
-    const res = await apiFetch(`/admin/forms${q}`);
-    const items = res && (res.items || res.data || res.list) ? (res.items || res.data || res.list) : [];
+    const res = await api(`/admin/forms${q}`);
+    const items = res && (res.items || res.data || res.list) ? (res.items || res.data || res.list) : (Array.isArray(res) ? res : []);
     renderItemsGrid('#admin-forms-list', items || [], true);
     renderMgmtList('#mgmt-forms-list', items || []);
   } catch (err) { console.error('loadAdminForms error', err); }
@@ -450,7 +487,7 @@ async function loadAdminForms(type = '') {
 
 async function loadAdminAccounts() {
   try {
-    const res = await apiFetch('/admin/accounts');
+    const res = await api('/admin/accounts');
     let users = [];
     if (!res) users = [];
     else if (Array.isArray(res)) users = res;
@@ -462,21 +499,27 @@ async function loadAdminAccounts() {
   } catch (err) { console.error('loadAdminAccounts error', err); }
 }
 
-/* ---------------------------
-   Render helpers
-   --------------------------- */
+/* Render helpers */
 function renderItemsGrid(containerSelectorOrEl, items = [], adminControls = false, forcedType = '') {
+  // accept either selector string or element
   const container = typeof containerSelectorOrEl === 'string' ? $(containerSelectorOrEl) : containerSelectorOrEl;
   if (!container) return;
   container.innerHTML = '';
-  if (!items || !items.length) { container.innerHTML = `<div class="muted">Tidak ada data.</div>`; return; }
+  if (!items || !items.length) {
+    container.innerHTML = `<div class="muted">Tidak ada data.</div>`;
+    return;
+  }
 
   items.forEach(it => {
     const el = document.createElement('div');
     el.className = 'grid-item';
-    const id = it.id || it._id || it._uid || '';
-    const type = forcedType || it.type || (it.isFound ? 'found' : (it.isLost ? 'lost' : 'unknown'));
+
+    // Normalize id and type
+    const id = it.id || it._id || it._uid || it._id_str || (it._id && (typeof it._id === 'object' ? (it._id.$oid || '') : '')) || '';
+    const type = forcedType || it.type || (it.isFound ? 'found' : (it.isLost ? 'lost' : (it.category || 'unknown')));
     const photoUrl = it.photo || it.photoUrl || it.image || it.imageUrl || '';
+
+    // Build HTML (no inline onclick)
     const photoHtml = photoUrl ? `<div class="thumb-wrap" style="width:100%;max-height:160px;overflow:hidden;border-radius:8px;margin-bottom:8px;"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(it.name||'')}" class="item-photo" style="width:100%;height:100%;object-fit:cover;display:block" /></div>` : '';
     const statusText = it.status ? ` • ${escapeHtml(it.status)}` : '';
 
@@ -509,7 +552,10 @@ function renderMgmtList(containerSelector, items = []) {
   const container = $(containerSelector);
   if (!container) return;
   container.innerHTML = '';
-  if (!items.length) { container.innerHTML = `<div class="muted">Tidak ada form untuk dikelola.</div>`; return; }
+  if (!items.length) {
+    container.innerHTML = `<div class="muted">Tidak ada form untuk dikelola.</div>`;
+    return;
+  }
   items.forEach(it => {
     const el = document.createElement('div');
     el.className = 'grid-item';
@@ -529,7 +575,10 @@ function renderAccountList(containerSelector, users = []) {
   const container = $(containerSelector);
   if (!container) return;
   container.innerHTML = '';
-  if (!users.length) { container.innerHTML = `<div class="muted">Tidak ada akun terdaftar.</div>`; return; }
+  if (!users.length) {
+    container.innerHTML = `<div class="muted">Tidak ada akun terdaftar.</div>`;
+    return;
+  }
   users.forEach(u => {
     const uid = u.id || u._id || u.username;
     const el = document.createElement('div');
@@ -546,25 +595,13 @@ function renderAccountList(containerSelector, users = []) {
   });
 }
 
-/* ---------------------------
-   Utilities
-   --------------------------- */
+/* --- Utilities --- */
 function escapeHtml(s = '') {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function capitalize(s='') { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (e) => reject(e);
-    reader.readAsDataURL(file);
-  });
-}
 
-/* ---------------------------
-   Detail modal
-   --------------------------- */
+/* --- Detail modal implementation --- */
 function ensureDetailModal() {
   let modal = $('#detail-modal');
   if (modal) return modal;
@@ -586,45 +623,70 @@ function ensureDetailModal() {
   });
   return modal;
 }
+
 function showDetailModal(html) {
   const modal = ensureDetailModal();
   const body = $('#modal-body');
   if (body) body.innerHTML = html;
   modal.style.display = 'block';
 }
+
 function hideDetailModal() {
   const modal = $('#detail-modal');
   if (modal) modal.style.display = 'none';
 }
 
+/**
+ * viewDetails(id, type)
+ * - robustly tries multiple endpoints and response shapes
+ * - shows modal with full info and close button
+ */
 async function viewDetails(id, type = '') {
   if (!id) { notifier.error('ID item tidak valid.'); return; }
   notifier.info('Memuat detail item...');
   try {
-    // try typed endpoints then generic
+    // Normalize id if it's an object-like string (e.g., {"$oid":"..."}), try to extract
+    try {
+      if (typeof id === 'string' && id.trim().startsWith('{')) {
+        const parsed = JSON.parse(id);
+        if (parsed && (parsed.$oid || parsed.oid)) id = parsed.$oid || parsed.oid;
+      }
+    } catch (e) { /* ignore parse errors */ }
+
+    const tryFetch = async (path) => {
+      try {
+        const r = await fetch(path);
+        if (!r.ok) return null;
+        try { return await r.json(); } catch (e) { return null; }
+      } catch (e) { return null; }
+    };
+
+    // Try endpoints in order: typed (if provided), generic items, typed fallback
     const endpoints = [];
-    if (type === 'lost') endpoints.push((API_BASE ? API_BASE : '') + `/api/lost/${id}`);
-    if (type === 'found') endpoints.push((API_BASE ? API_BASE : '') + `/api/found/${id}`);
-    endpoints.push((API_BASE ? API_BASE : '') + `/api/items/${id}`);
-    endpoints.push((API_BASE ? API_BASE : '') + `/api/found/${id}`, (API_BASE ? API_BASE : '') + `/api/lost/${id}`);
+    if (type === 'lost') endpoints.push(`/api/lost/${id}`);
+    if (type === 'found') endpoints.push(`/api/found/${id}`);
+    endpoints.push(`/api/items/${id}`);
+    endpoints.push(`/api/found/${id}`, `/api/lost/${id}`);
 
     let detail = null;
     for (const ep of endpoints) {
-      try {
-        const r = await fetch(ep);
-        if (!r.ok) continue;
-        const j = await r.json().catch(()=>null);
-        if (!j) continue;
-        if (j.item && typeof j.item === 'object') { detail = j.item; break; }
-        if (j.data && typeof j.data === 'object' && !Array.isArray(j.data)) { detail = j.data; break; }
-        if (j.items && Array.isArray(j.items) && j.items.length === 1) { detail = j.items[0]; break; }
-        // if direct object
-        if (j && j.id) { detail = j; break; }
-      } catch (e) { /* ignore */ }
+      detail = await tryFetch(ep);
+      if (detail) {
+        // normalize wrapper shapes: { item: {...} } or { data: {...} } or direct object
+        if (detail.item && typeof detail.item === 'object') detail = detail.item;
+        else if (detail.data && typeof detail.data === 'object' && !Array.isArray(detail.data)) detail = detail.data;
+        // If API returns { ok:true, items:[...] } and items length 1, try to pick first
+        else if (detail.items && Array.isArray(detail.items) && detail.items.length === 1) detail = detail.items[0];
+        break;
+      }
     }
 
-    if (!detail) { notifier.error('Detail item tidak ditemukan.'); return; }
+    if (!detail) {
+      notifier.error('Detail item tidak ditemukan.');
+      return;
+    }
 
+    // Build modal HTML
     const photoUrl = detail.photo || detail.photoUrl || detail.image || detail.imageUrl || '';
     const typeLabel = detail.type || type || (detail.isFound ? 'found' : (detail.isLost ? 'lost' : 'unknown'));
     const html = `
@@ -644,73 +706,214 @@ async function viewDetails(id, type = '') {
       </div>
     `;
     showDetailModal(html);
-    on($('#modal-close-btn'), 'click', hideDetailModal);
+    const closeBtn = $('#modal-close-btn');
+    if (closeBtn) on(closeBtn, 'click', hideDetailModal);
   } catch (err) {
-    console.error(err); notifier.error('Gagal memuat detail item.');
+    console.error('viewDetails error', err);
+    notifier.error('Gagal memuat detail item.');
   }
 }
 
-/* ---------------------------
-   Auth helpers & UI
-   --------------------------- */
-function updateUserBadge() {
-  const badge = $('#user-badge');
-  if (!badge) return;
-  const stored = localStorage.getItem('sp_lnf_user');
-  if (!stored) { badge.textContent = 'Guest'; return; }
+/* --- Recent lists for Home --- */
+async function loadRecentLists() {
   try {
-    const u = JSON.parse(stored);
-    badge.textContent = u.username || 'User';
-  } catch (e) { badge.textContent = 'User'; }
-}
-function ensureAdmin() {
-  const stored = localStorage.getItem('sp_lnf_user');
-  if (!stored) { notifier.error('Akses admin hanya untuk akun admin.'); return false; }
-  try {
-    const u = JSON.parse(stored);
-    if (!u || u.role !== 'admin') { notifier.error('Akses admin hanya untuk akun admin.'); return false; }
-    return true;
-  } catch (e) { notifier.error('Akses admin hanya untuk akun admin.'); return false; }
-}
-function renderLogoutSubpage() {
-  const el = $('#sub-account-logout');
-  if (!el) return;
-  const stored = localStorage.getItem('sp_lnf_user');
-  if (!stored) { el.innerHTML = '<div class="muted">Belum login.</div>'; return; }
-  try {
-    const u = JSON.parse(stored);
-    el.innerHTML = `<div>Anda login sebagai <strong>${escapeHtml(u.username)}</strong> (${escapeHtml(u.role)})</div><div style="margin-top:8px"><button id="logout-btn" class="btn danger">Logout</button></div>`;
-    on($('#logout-btn'), 'click', async () => {
-      try {
-        const res = await apiFetch('/account/logout', { method: 'POST' });
-        localStorage.removeItem('sp_lnf_user'); localStorage.removeItem('sp_lnf_token'); state.user = null;
-        updateUserBadge(); notifier.success('Logged out'); showPage('home');
-      } catch (err) { console.error(err); notifier.error('Gagal logout.'); }
-    });
-  } catch (e) { el.innerHTML = '<div class="muted">Belum login.</div>'; }
+    // Recent Found (show recent found reports)
+    const foundRes = await api('/found/list');
+    const foundItems = foundRes && (foundRes.items || foundRes.data || foundRes.list) ? (foundRes.items || foundRes.data || foundRes.list) : (Array.isArray(foundRes) ? foundRes : []);
+    const recentFoundEl = $('#recent-found-list');
+    if (recentFoundEl) {
+      recentFoundEl.innerHTML = '';
+      const slice = (foundItems || []).slice(0,5);
+      if (!slice.length) recentFoundEl.textContent = '—';
+      else {
+        slice.forEach(it => {
+          const name = it.name || it.title || '—';
+          const loc = it.location ? ` — ${it.location}` : '';
+          const div = document.createElement('div');
+          div.textContent = `${name}${loc}`;
+          recentFoundEl.appendChild(div);
+        });
+      }
+    }
+
+    // Recent Lost (show recent lost reports)
+    const lostRes = await api('/lost/list');
+    const lostItems = lostRes && (lostRes.items || lostRes.data || lostRes.list) ? (lostRes.items || lostRes.data || lostRes.list) : (Array.isArray(lostRes) ? lostRes : []);
+    const recentLostEl = $('#recent-lost-list');
+    if (recentLostEl) {
+      recentLostEl.innerHTML = '';
+      const slice = (lostItems || []).slice(0,5);
+      if (!slice.length) recentLostEl.textContent = '—';
+      else {
+        slice.forEach(it => {
+          const name = it.name || it.title || '—';
+          const loc = it.location ? ` — ${it.location}` : '';
+          const div = document.createElement('div');
+          div.textContent = `${name}${loc}`;
+          recentLostEl.appendChild(div);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('loadRecentLists error', err);
+  }
 }
 
-/* ---------------------------
-   Init
-   --------------------------- */
-async function initApp() {
+/* --- Auth helpers & UI --- */
+function updateUserBadge() {
+  const badge = $('#user-badge');
+  const stored = localStorage.getItem('sp_lnf_user');
+
+  const setAdminNavVisibility = (visible) => {
+    const adminSidebarBtn = $('#btn-page-admin');
+    if (adminSidebarBtn) adminSidebarBtn.style.display = visible ? '' : 'none';
+    $$('.page-navbar .nav-btn').forEach(btn => {
+      const sub = btn.dataset.sub || '';
+      if (sub && (sub.startsWith('admin') || sub === 'home-short-admin')) btn.style.display = visible ? '' : 'none';
+    });
+  };
+
+  const setAccountLoginLogout = (isLoggedIn, username) => {
+    let loginBtn = document.querySelector('.page-account .page-navbar .nav-btn[data-sub="account-login"]')
+      || document.querySelector('.page-account .page-navbar .nav-btn[data-sub="account-logout"]')
+      || document.querySelector('.nav-btn[data-sub="account-login"]')
+      || document.querySelector('.nav-btn[data-sub="account-logout"]');
+
+    if (loginBtn) {
+      if (isLoggedIn) {
+        loginBtn.textContent = 'Logout';
+        loginBtn.dataset.sub = 'account-logout';
+        loginBtn.classList.add('nav-logout-btn');
+      } else {
+        loginBtn.textContent = 'Login';
+        loginBtn.dataset.sub = 'account-login';
+        loginBtn.classList.remove('nav-logout-btn');
+      }
+    }
+
+    const logoutNameSpan = document.querySelector('#logout-username');
+    if (logoutNameSpan) logoutNameSpan.textContent = isLoggedIn && username ? username : 'Guest';
+
+    if (!isLoggedIn && state.currentPage === 'account' && state.currentSub === 'account-logout') {
+      activateSub('account-login');
+    }
+  };
+
+  if (stored) {
+    try { state.user = JSON.parse(stored); } catch (e) { state.user = null; }
+    if (state.user) {
+      if (badge) badge.textContent = `${state.user.username} (${state.user.role})`;
+      if (badge) badge.style.color = 'var(--accent)';
+      const isAdmin = state.user.role === 'admin';
+      setAdminNavVisibility(isAdmin);
+      setAccountLoginLogout(true, state.user.username);
+      renderLogoutSubpage();
+      return;
+    }
+  }
+
+  state.user = null;
+  if (badge) badge.textContent = 'Guest';
+  if (badge) badge.style.color = 'var(--muted)';
+  setAdminNavVisibility(false);
+  setAccountLoginLogout(false, null);
+}
+
+function showAccountSubpage(sub) { showPage('account'); activateSub(sub); }
+
+function renderLogoutSubpage() {
+  const container = document.querySelector('.page-account .subpage[data-sub="account-logout"] .content');
+  if (!container) return;
+  const username = state.user ? state.user.username : 'Guest';
+  container.innerHTML = `
+    <div class="logout-box" style="padding:12px;">
+      <p><strong>Username:</strong> <span id="logout-username">${escapeHtml(username)}</span></p>
+      <div style="margin-top:12px;">
+        <button id="btn-logout-action" class="btn danger">Logout</button>
+      </div>
+    </div>
+  `;
+  const btn = $('#btn-logout-action');
+  if (btn) btn.addEventListener('click', async () => { await handleLogout(); });
+}
+
+async function handleLogout() {
+  try {
+    const token = localStorage.getItem('sp_lnf_token');
+    if (token) {
+      await fetch('/api/account/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(()=>{});
+    }
+  } catch (e) {
+    console.warn('Logout request failed', e);
+  } finally {
+    localStorage.removeItem('sp_lnf_token');
+    localStorage.removeItem('sp_lnf_user');
+    state.user = null;
+    updateUserBadge();
+    notifier.success('Berhasil logout.');
+    showPage('account');
+    activateSub('account-login');
+  }
+}
+
+function ensureAdmin() {
+  if (!state.user || state.user.role !== 'admin') {
+    notifier.error('Akses ditolak. Fitur ini hanya untuk admin.');
+    return false;
+  }
+  const token = localStorage.getItem('sp_lnf_token');
+  if (!token) { notifier.error('Token tidak ditemukan. Silakan login ulang.'); return false; }
+  return true;
+}
+
+/* Global delegated handler for logout button (fallback) */
+document.addEventListener('click', (e) => {
+  const logoutBtn = e.target.closest && e.target.closest('#btn-logout-action');
+  if (!logoutBtn) return;
+  e.preventDefault();
+  if (typeof handleLogout === 'function') {
+    handleLogout().catch(err => { console.error('handleLogout error', err); notifier.error('Gagal melakukan logout. Coba lagi.'); });
+  }
+});
+
+/* Delegated handler for dynamic Detail buttons */
+document.addEventListener('click', (e) => {
+  const detailBtn = e.target.closest && e.target.closest('.btn-detail');
+  if (!detailBtn) return;
+  const id = detailBtn.dataset.id;
+  const type = detailBtn.dataset.type || '';
+  viewDetails(id, type);
+});
+
+/* --- Initial load --- */
+async function initialLoad() {
   initBackground();
   initNavigation();
   bindForms();
   updateUserBadge();
-  // initial loads
-  await Promise.all([loadLostList(), loadFoundList(), loadRecentLists()]);
-  // attach delegated detail handler
-  on(document, 'click', (e) => {
-    const btn = e.target.closest('.btn-detail');
-    if (!btn) return;
-    const id = btn.dataset.id;
-    const type = btn.dataset.type || '';
-    viewDetails(id, type);
-  });
+
+  // Load lists (respecting intentional swap)
+  await Promise.all([loadLostList(), loadFoundList()]);
+  // Load recent lists for home
+  await loadRecentLists();
+
+  // If admin, load admin data
+  const stored = localStorage.getItem('sp_lnf_user');
+  if (stored) {
+    try {
+      const u = JSON.parse(stored);
+      if (u && u.role === 'admin') {
+        await Promise.all([loadAdminForms(), loadAdminAccounts()]);
+      }
+    } catch (e) {}
+  }
 }
+
+// Expose viewDetails globally for compatibility (optional)
+window.viewDetails = viewDetails;
 
 // Start
 document.addEventListener('DOMContentLoaded', () => {
-  initApp().catch(err => console.error('initApp error', err));
+  initialLoad().catch(err => console.error('initialLoad error', err));
 });
+

@@ -1,15 +1,16 @@
 
 {
   "name": "spetech-lnf-web",
-  "version": "1.0.0",
-  "description": "Spetech Lost & Found Web",
+  "version": "1.1.0",
+  "description": "Spetech Lost & Found Web (KTI Project)",
   "main": "server.js",
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon --watch . --ext js,json --exec \"node server.js\"",
+    "start": "node server.js", 
+    "dev": "wrangler dev", 
+    "publish": "wrangler publish", 
     "lint": "echo \"No linter configured\"",
     "init-db": "node -e \"require('./server.js')\"",
     "generate-qr-sample": "node -e \"(async()=>{const q=require('./utils/qrgenerator');await q.ensureDirs();console.log(await q.generateQrSvg('Gedung A'));})().catch(e=>{console.error(e);process.exit(1)})\""
@@ -20,19 +21,23 @@
     "qr",
     "express",
     "kti",
-    "prototype"
+    "prototype",
+    "cloudflare",
+    "workers",
+    "d1"
   ],
   "author": "Spetech Team",
   "license": "MIT",
   "dependencies": {
     "bcrypt": "^5.1.0",
     "express": "^4.18.2",
-    "fs-extra": "^11.1.1",
+    "fs-extra": "^11.2.0",
     "multer": "^1.4.5-lts.1",
-    "qrcode": "^1.5.1",
-    "uuid": "^9.0.0"
+    "qrcode": "^1.5.3",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "nodemon": "^3.0.2",
+    "wrangler": "^4.81.1"
   }
 }

@@ -1,86 +1,68 @@
 
 // backend/lib/db.js
 // Centralized DB utility for Spetech LNF backend
-// - Provides readDb() and writeDb() functions
-// - Normalizes structure: { users: [], items: [], sessions: [] }
-// - Adds lightweight logging and safe-write (atomic via tmp file)
-// - All backend modules should require this util to avoid duplicate DB files
+// - Local dev: read/write db.json
+// - Production (Cloudflare Workers): use env.DB (D1 binding)
+// - Provides safe read/write, normalization, and optional backup
 
 const fs = require('fs-extra');
 const path = require('path');
-const os = require('os');
 const { DB_FILE, DB_DIR } = require('../config');
 
 const LOG_PREFIX = '[db]';
 
-/**
- * Ensure DB directory exists (idempotent)
- */
+// Ensure DB dir exists
 fs.ensureDirSync(DB_DIR);
 
+// Default normalized structure
+function defaultDb() {
+  return { users: [], items: [], sessions: [], locations: [] };
+}
+
 /**
- * readDb
- * - Reads DB_FILE and returns normalized object
- * - If file missing or invalid JSON, returns default structure
+ * Local dev: read db.json
  */
 async function readDb() {
   try {
     const exists = await fs.pathExists(DB_FILE);
-    if (!exists) {
-      // return empty normalized DB (do not create file here to avoid race)
-      console.debug(`${LOG_PREFIX} readDb: DB file not found at ${DB_FILE}, returning empty DB`);
-      return { users: [], items: [], sessions: [] };
-    }
+    if (!exists) return defaultDb();
 
     const raw = await fs.readFile(DB_FILE, 'utf8');
-    if (!raw || !raw.trim()) {
-      console.debug(`${LOG_PREFIX} readDb: DB file empty, returning empty DB`);
-      return { users: [], items: [], sessions: [] };
-    }
+    if (!raw || !raw.trim()) return defaultDb();
 
     let data;
     try {
       data = JSON.parse(raw);
-    } catch (parseErr) {
-      console.warn(`${LOG_PREFIX} readDb: JSON parse error for ${DB_FILE}: ${parseErr.message}`);
-      // return empty normalized DB to allow server to continue; operator should inspect file
-      return { users: [], items: [], sessions: [] };
+    } catch (err) {
+      console.warn(`${LOG_PREFIX} JSON parse error: ${err.message}`);
+      return defaultDb();
     }
 
-    // Normalize shape
-    data.users = Array.isArray(data.users) ? data.users : [];
-    data.items = Array.isArray(data.items) ? data.items : [];
-    data.sessions = Array.isArray(data.sessions) ? data.sessions : [];
-
-    return data;
+    // Normalize
+    return {
+      users: Array.isArray(data.users) ? data.users : [],
+      items: Array.isArray(data.items) ? data.items : [],
+      sessions: Array.isArray(data.sessions) ? data.sessions : [],
+      locations: Array.isArray(data.locations) ? data.locations : []
+    };
   } catch (err) {
-    console.error(`${LOG_PREFIX} readDb unexpected error:`, err);
-    return { users: [], items: [], sessions: [] };
+    console.error(`${LOG_PREFIX} readDb error:`, err);
+    return defaultDb();
   }
 }
 
 /**
- * writeDb
- * - Writes DB object to DB_FILE atomically (write to temp then move)
- * - Ensures arrays exist and are arrays
- * - Returns true on success, throws on failure
+ * Local dev: write db.json atomically
  */
 async function writeDb(dbObj) {
   try {
-    // Normalize
-    const data = Object.assign({}, dbObj);
-    data.users = Array.isArray(data.users) ? data.users : [];
-    data.items = Array.isArray(data.items) ? data.items : [];
-    data.sessions = Array.isArray(data.sessions) ? data.sessions : [];
-
-    // Prepare JSON
+    const data = Object.assign({}, defaultDb(), dbObj);
     const json = JSON.stringify(data, null, 2);
 
-    // Atomic write: write to temp file in same dir then rename
     const tmpName = `.db.tmp.${Date.now()}.${Math.random().toString(36).slice(2,8)}`;
     const tmpPath = path.join(DB_DIR, tmpName);
 
-    await fs.writeFile(tmpPath, json, { encoding: 'utf8' });
+    await fs.writeFile(tmpPath, json, 'utf8');
     await fs.move(tmpPath, DB_FILE, { overwrite: true });
 
     console.debug(`${LOG_PREFIX} writeDb: wrote ${DB_FILE} (${json.length} bytes)`);
@@ -92,19 +74,16 @@ async function writeDb(dbObj) {
 }
 
 /**
- * backupDb
- * - Optional helper to create a timestamped backup of current DB_FILE
- * - Returns backup path or null if no file existed
+ * Optional backup
  */
 async function backupDb() {
   try {
     const exists = await fs.pathExists(DB_FILE);
     if (!exists) return null;
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupName = `db.backup.${stamp}.json`;
-    const backupPath = path.join(DB_DIR, 'backups');
-    await fs.ensureDir(backupPath);
-    const dest = path.join(backupPath, backupName);
+    const backupDir = path.join(DB_DIR, 'backups');
+    await fs.ensureDir(backupDir);
+    const dest = path.join(backupDir, `db.backup.${stamp}.json`);
     await fs.copy(DB_FILE, dest);
     console.debug(`${LOG_PREFIX} backupDb: created backup at ${dest}`);
     return dest;
@@ -115,39 +94,19 @@ async function backupDb() {
 }
 
 /**
- * findDuplicateDbFiles
- * - Utility to scan project for other db.json files (helpful during migration)
- * - Returns array of absolute paths (excluding canonical DB_FILE)
+ * Production helper (Cloudflare Workers)
+ * Use env.DB (D1 binding) directly in worker files.
+ * Example:
+ *   const rows = await env.DB.prepare("SELECT * FROM users").all();
  */
-async function findDuplicateDbFiles(rootDir = path.resolve(__dirname, '..', '..')) {
-  const results = [];
-  try {
-    const walk = async (dir) => {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const e of entries) {
-        const p = path.join(dir, e.name);
-        if (e.isDirectory()) {
-          // skip node_modules and .git for speed
-          if (e.name === 'node_modules' || e.name === '.git') continue;
-          await walk(p);
-        } else if (e.isFile() && e.name === 'db.json') {
-          const abs = path.resolve(p);
-          if (abs !== path.resolve(DB_FILE)) results.push(abs);
-        }
-      }
-    };
-    await walk(rootDir);
-  } catch (err) {
-    // non-fatal
-    console.warn(`${LOG_PREFIX} findDuplicateDbFiles warning:`, err.message);
-  }
-  return results;
+function d1Helper(env) {
+  return env.DB;
 }
 
 module.exports = {
   readDb,
   writeDb,
   backupDb,
-  findDuplicateDbFiles,
+  d1Helper,
   DB_FILE
 };
