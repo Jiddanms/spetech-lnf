@@ -1,5 +1,5 @@
 
-name = "spetech-workers"
+name = "spetech-lnf"
 main = "workers/index.js"
 compatibility_date = "2026-04-13"
 account_id = "b477fdc21b445487f00664d50d36b35f"
