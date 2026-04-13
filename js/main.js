@@ -13,7 +13,7 @@
    --------------------------- */
 // Replace this with your Worker URL after `wrangler publish` (no trailing slash).
 // Example: "https://spetech-workers.abcd.workers.dev"
-const API_BASE = "REPLACE_WITH_YOUR_WORKER_URL_OR_EMPTY_FOR_LOCAL"; // e.g. "https://...workers.dev" or "" to use relative /api
+const API_BASE = "https://spetech-lnf.jiddanms.workers.dev"; // e.g. "https://...workers.dev" or "" to use relative /api
 
 // Helper: detect local server (serve from same origin or explicit empty API_BASE)
 function isLocalServer() {
