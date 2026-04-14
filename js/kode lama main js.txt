@@ -1,0 +1,495 @@
+
+/**
+ * main.js
+ * Core frontend logic for Spetech Lost and Found Web
+ *
+ * Responsibilities:
+ * - Sidebar page switching (Home, Lost, Found, Admin, Account)
+ * - Per-page navbar (sub-page) switching
+ * - Wire up forms (lost report, found report, login, register, admin management)
+ * - Minimal client-side validation and fetch wrappers for backend integration
+ * - Hooks for QR scanner and notifier modules (qrscanner.js, notifier.js)
+ *
+ * Assumptions:
+ * - notifier.js exposes: notifier.success(msg), notifier.error(msg), notifier.info(msg)
+ * - qrscanner.js exposes: qrScanner.scan(callback) which calls callback(locationName)
+ * - Backend API base path: /api (adjust server routes accordingly)
+ *
+ * Keep this file efficient, modular, and consistent with index.html IDs/classes.
+ */
+
+/* Utility helpers */
+const $ = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+const on = (el, ev, fn) => el && el.addEventListener(ev, fn);
+const api = (path, opts = {}) => fetch(`/api${path}`, opts).then(r => r.json());
+
+/* App state */
+const state = {
+  currentPage: 'home',
+  currentSub: null,
+  user: null, // { username, role }
+};
+
+/* --- Navigation: pages & subpages --- */
+function showPage(pageId) {
+  // update sidebar active
+  $$('.side-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.page === pageId));
+  // update page title
+  const titleMap = {
+    home: 'Home',
+    lost: 'Lost',
+    found: 'Found',
+    admin: 'Admin',
+    account: 'Account'
+  };
+  $('#page-title').textContent = titleMap[pageId] || 'Spetech LNF';
+  // show/hide pages
+  $$('.page').forEach(p => p.classList.toggle('active', p.dataset.page === pageId));
+  state.currentPage = pageId;
+
+  // default subpage per page
+  switch (pageId) {
+    case 'home': activateSub('home-short-lost'); break;
+    case 'lost': activateSub('lost-list'); break;
+    case 'found': activateSub('found-report'); break;
+    case 'admin': activateSub('admin-verify'); break;
+    case 'account': activateSub('account-login'); break;
+  }
+}
+
+function activateSub(subId) {
+  // page navbar buttons
+  $$('.page-navbar .nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.sub === subId));
+  // hide all subpages in current page and show the selected one
+  const page = $(`#page-${state.currentPage}`);
+  if (!page) return;
+  $$('.subpage', page).forEach(sp => sp.classList.toggle('hidden', sp.id !== `sub-${subId}` && sp.id !== subId));
+  // some subpage ids in markup are like "sub-lost-list" while nav data-sub is "lost-list"
+  // normalize: try both patterns
+  $$('.subpage', page).forEach(sp => {
+    const normalized = sp.id.replace(/^sub-/, '');
+    sp.classList.toggle('hidden', normalized !== subId);
+  });
+  state.currentSub = subId;
+}
+
+/* --- Init sidebar & page navbar listeners --- */
+function initNavigation() {
+  // sidebar buttons
+  $$('.side-btn').forEach(btn => {
+    on(btn, 'click', () => showPage(btn.dataset.page));
+  });
+
+  // page navbar buttons (delegated)
+  $$('.page-navbar').forEach(nav => {
+    on(nav, 'click', (e) => {
+      const btn = e.target.closest('.nav-btn');
+      if (!btn) return;
+      const sub = btn.dataset.sub;
+      // some home shortcuts map to pages
+      if (state.currentPage === 'home' && sub && sub.startsWith('home-short-')) {
+        const targetPage = sub.replace('home-short-', '');
+        showPage(targetPage);
+        return;
+      }
+      activateSub(sub);
+    });
+  });
+
+  // sidebar toggle (mobile)
+  on($('#sidebar-toggle'), 'click', () => {
+    document.querySelector('.sidebar').classList.toggle('collapsed');
+  });
+
+  // set initial page
+  showPage(state.currentPage);
+}
+
+/* --- Form handlers --- */
+function bindForms() {
+  // Lost report
+  on($('#lost-submit'), 'click', async () => {
+    const name = $('#lost-name').value.trim();
+    const desc = $('#lost-desc').value.trim();
+    const location = $('#lost-location').value;
+    const contact = $('#lost-contact').value.trim();
+
+    if (!name || !desc || !location) {
+      notifier.error('Isi semua field wajib pada laporan kehilangan.');
+      return;
+    }
+
+    try {
+      const payload = { name, description: desc, location, contact, type: 'lost' };
+      // POST to backend
+      await api('/lost/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      notifier.success('Laporan kehilangan berhasil dikirim.');
+      $('#form-lost-report').reset();
+      loadLostList(); // refresh list
+    } catch (err) {
+      console.error(err);
+      notifier.error('Gagal mengirim laporan. Coba lagi.');
+    }
+  });
+
+  // Found report
+  on($('#found-submit'), 'click', async () => {
+    const name = $('#found-name').value.trim();
+    const desc = $('#found-desc').value.trim();
+    const location = $('#found-location').value;
+    const photoInput = $('#found-photo');
+
+    if (!name || !desc || !location) {
+      notifier.error('Isi semua field wajib pada laporan penemuan.');
+      return;
+    }
+
+    try {
+      // Use FormData for file upload
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('description', desc);
+      fd.append('location', location);
+      if (photoInput && photoInput.files && photoInput.files[0]) {
+        fd.append('photo', photoInput.files[0]);
+      }
+
+      await fetch('/api/found/add', { method: 'POST', body: fd }).then(r => r.json());
+      notifier.success('Laporan penemuan berhasil dikirim.');
+      $('#form-found-report').reset();
+      loadFoundList();
+    } catch (err) {
+      console.error(err);
+      notifier.error('Gagal mengirim laporan penemuan.');
+    }
+  });
+
+  // Found scan QR
+  on($('#found-scan-qr'), 'click', () => {
+    if (typeof qrScanner === 'undefined' || !qrScanner.scan) {
+      notifier.error('Fitur scan QR belum tersedia.');
+      return;
+    }
+    notifier.info('Membuka scanner QR...');
+    qrScanner.scan((locationName) => {
+      // Validate locationName against allowed list
+      const allowed = ['Gedung A','Gedung B','Gedung C','Lapangan Upacara','Lapangan Basket','Lapangan Tenis','Koperasi','Kantin'];
+      if (allowed.includes(locationName)) {
+        $('#found-location').value = locationName;
+        notifier.success(`Lokasi terisi: ${locationName}`);
+      } else {
+        notifier.error('QR tidak dikenali sebagai lokasi pelaporan.');
+      }
+    });
+  });
+
+  // Login
+  on($('#login-btn'), 'click', async () => {
+    const username = $('#login-username').value.trim();
+    const password = $('#login-password').value;
+    if (!username || !password) {
+      notifier.error('Masukkan username dan password.');
+      return;
+    }
+    try {
+      const res = await api('/account/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res && res.ok) {
+        state.user = res.user;
+        localStorage.setItem('sp_lnf_user', JSON.stringify(res.user));
+        updateUserBadge();
+        notifier.success('Login berhasil.');
+        showPage('home');
+      } else {
+        notifier.error(res.message || 'Login gagal.');
+      }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat login.');
+    }
+  });
+
+  // Register
+  on($('#register-btn'), 'click', async () => {
+    const username = $('#reg-username').value.trim();
+    const password = $('#reg-password').value;
+    const role = $('#reg-role').value || 'user';
+    if (!username || !password) {
+      notifier.error('Isi username dan password untuk registrasi.');
+      return;
+    }
+    try {
+      const res = await api('/account/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role })
+      });
+      if (res && res.ok) {
+        notifier.success('Registrasi berhasil. Silakan login.');
+        // auto-switch to login subpage
+        showPage('account');
+        activateSub('account-login');
+      } else {
+        notifier.error(res.message || 'Registrasi gagal.');
+      }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat registrasi.');
+    }
+  });
+
+  // Admin create account (Management)
+  on($('#mgmt-create-btn'), 'click', async () => {
+    if (!ensureAdmin()) return;
+    const username = $('#mgmt-username').value.trim();
+    const password = $('#mgmt-password').value;
+    const role = $('#mgmt-role').value;
+    if (!username || !password) {
+      notifier.error('Isi username dan password untuk membuat akun.');
+      return;
+    }
+    try {
+      const res = await api('/admin/create-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role })
+      });
+      if (res && res.ok) {
+        notifier.success('Akun berhasil dibuat.');
+        $('#form-admin-create').reset();
+        loadMgmtForms();
+      } else {
+        notifier.error(res.message || 'Gagal membuat akun.');
+      }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat membuat akun.');
+    }
+  });
+
+  // Delegated admin form controls (status change / delete)
+  on($('#mgmt-forms-list'), 'click', async (e) => {
+    if (!ensureAdmin()) return;
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const itemId = btn.dataset.id;
+    if (!action || !itemId) return;
+
+    if (action === 'delete') {
+      if (!confirm('Hapus form ini? Tindakan tidak dapat dibatalkan.')) return;
+      try {
+        const res = await api(`/admin/delete/${itemId}`, { method: 'DELETE' });
+        if (res && res.ok) {
+          notifier.success('Form dihapus.');
+          loadMgmtForms();
+          loadLostList();
+          loadFoundList();
+        } else notifier.error(res.message || 'Gagal menghapus form.');
+      } catch (err) {
+        console.error(err);
+        notifier.error('Gagal menghapus form.');
+      }
+    }
+
+    if (action === 'set-status') {
+      const select = document.querySelector(`#status-select-${itemId}`);
+      if (!select) return;
+      const newStatus = select.value;
+      try {
+        const res = await api(`/admin/status/${itemId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+        if (res && res.ok) {
+          notifier.success('Status diperbarui.');
+          loadMgmtForms();
+          loadLostList();
+          loadFoundList();
+        } else notifier.error(res.message || 'Gagal memperbarui status.');
+      } catch (err) {
+        console.error(err);
+        notifier.error('Gagal memperbarui status.');
+      }
+    }
+  });
+}
+
+/* --- Data loading & rendering --- */
+async function loadLostList() {
+  try {
+    const res = await api('/lost/list');
+    renderItemsGrid('#lost-items-grid', res.items || []);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function loadFoundList() {
+  try {
+    const res = await api('/found/list');
+    renderItemsGrid('#found-items-grid', res.items || []);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function loadAdminQueues() {
+  try {
+    const pending = await api('/admin/list?status=pending');
+    const waiting = await api('/admin/list?status=verified');
+    const archived = await api('/admin/list?status=archived');
+    renderItemsGrid('#admin-verify-list', pending.items || [], true);
+    renderItemsGrid('#admin-complete-list', waiting.items || [], true);
+    renderItemsGrid('#admin-archive-list', archived.items || [], true);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function loadMgmtForms() {
+  try {
+    const res = await api('/admin/list?status=all');
+    renderMgmtList('#mgmt-forms-list', res.items || []);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+/* Render helpers */
+function renderItemsGrid(containerSelector, items = [], adminControls = false) {
+  const container = $(containerSelector);
+  if (!container) return;
+  container.innerHTML = '';
+  if (!items.length) {
+    container.innerHTML = `<div class="muted">Tidak ada data.</div>`;
+    return;
+  }
+  items.forEach(it => {
+    const el = document.createElement('div');
+    el.className = 'grid-item';
+    el.innerHTML = `
+      <div class="title">${escapeHtml(it.name)}</div>
+      <div class="meta">${escapeHtml(it.location)} • ${escapeHtml(it.status || '')}</div>
+      <div class="meta">${escapeHtml(it.description || '')}</div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        ${adminControls ? adminControlHtml(it) : ''}
+        <button class="btn secondary" onclick="viewDetails('${it.id}')">Detail</button>
+      </div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+function adminControlHtml(item) {
+  const statuses = ['pending', 'verified', 'completed', 'archived', 'deleted'];
+  const options = statuses.map(s => `<option value="${s}" ${s===item.status?'selected':''}>${capitalize(s)}</option>`).join('');
+  return `
+    <select id="status-select-${item.id}" class="select-status">${options}</select>
+    <button class="btn primary" data-action="set-status" data-id="${item.id}">Simpan</button>
+    <button class="btn danger" data-action="delete" data-id="${item.id}">Hapus</button>
+  `;
+}
+
+function renderMgmtList(containerSelector, items = []) {
+  const container = $(containerSelector);
+  if (!container) return;
+  container.innerHTML = '';
+  if (!items.length) {
+    container.innerHTML = `<div class="muted">Tidak ada form untuk dikelola.</div>`;
+    return;
+  }
+  items.forEach(it => {
+    const el = document.createElement('div');
+    el.className = 'grid-item';
+    el.innerHTML = `
+      <div class="title">${escapeHtml(it.name)}</div>
+      <div class="meta">Tipe: ${escapeHtml(it.type || 'unknown')} • Lokasi: ${escapeHtml(it.location)}</div>
+      <div class="meta">${escapeHtml(it.description || '')}</div>
+      <div class="mgmt-controls" style="margin-top:8px">
+        ${adminControlHtml(it)}
+      </div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+/* --- Small utilities --- */
+function escapeHtml(s = '') {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function capitalize(s='') { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+/* --- Misc actions --- */
+function viewDetails(id) {
+  // Placeholder: open modal or navigate to detail view (not implemented yet)
+  notifier.info(`Buka detail item: ${id}`);
+}
+
+/* --- Auth helpers --- */
+function updateUserBadge() {
+  const badge = $('#user-badge');
+  const stored = localStorage.getItem('sp_lnf_user');
+  if (stored) {
+    state.user = JSON.parse(stored);
+    badge.textContent = `${state.user.username} (${state.user.role})`;
+    badge.style.color = 'var(--accent)';
+  } else {
+    state.user = null;
+    badge.textContent = 'Guest';
+    badge.style.color = 'var(--muted)';
+  }
+}
+
+function ensureAdmin() {
+  if (!state.user || state.user.role !== 'admin') {
+    notifier.error('Akses ditolak. Fitur ini hanya untuk admin.');
+    return false;
+  }
+  return true;
+}
+
+/* --- Initial load --- */
+async function initialLoad() {
+  updateUserBadge();
+  initNavigation();
+  bindForms();
+
+  // Load lists for home quick view
+  try {
+    const [foundRes, lostRes] = await Promise.all([
+      api('/found/recent').catch(()=>({items:[] })),
+      api('/lost/recent').catch(()=>({items:[] }))
+    ]);
+    // render quick lists
+    const rf = $('#recent-found-list');
+    const rl = $('#recent-lost-list');
+    rf.innerHTML = (foundRes.items || []).slice(0,5).map(i => `<div>${escapeHtml(i.name)} <small class="muted">(${escapeHtml(i.location)})</small></div>`).join('') || '<div class="muted">—</div>';
+    rl.innerHTML = (lostRes.items || []).slice(0,5).map(i => `<div>${escapeHtml(i.name)} <small class="muted">(${escapeHtml(i.location)})</small></div>`).join('') || '<div class="muted">—</div>';
+  } catch (err) {
+    console.error(err);
+  }
+
+  // Load lists for pages
+  await Promise.all([loadLostList(), loadFoundList(), loadAdminQueues(), loadMgmtForms()]);
+}
+
+/* --- Expose some functions for inline handlers (viewDetails uses this) --- */
+window.viewDetails = viewDetails;
+
+/* Start app when DOM ready */
+document.addEventListener('DOMContentLoaded', () => {
+  initialLoad().catch(err => {
+    console.error('Init error', err);
+    notifier.error('Terjadi kesalahan inisialisasi aplikasi.');
+  });
+});

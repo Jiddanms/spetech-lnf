@@ -1,0 +1,420 @@
+
+
+/* style.css
+   Dark mode theme (abu-abu, biru, putih)
+   Consistent with index.html IDs/classes
+   Focus: clean, readable, efficient, responsive
+   Background layer: fixed, persistent, stable (paths fixed, no bg-image flicker)
+*/
+
+/* Theme variables */
+:root{
+  --bg-900: #0f1720; /* page background very dark */
+  --bg-800: #121826;
+  --panel:  #1b2430; /* panels, sidebar */
+  --muted:  #9aa6b2; /* secondary text */
+  --accent: #2ea6ff; /* primary blue */
+  --accent-2:#1e90ff; /* hover blue */
+  --card:   #151a22; /* card background */
+  --white:  #ffffff;
+  --success: #2ecc71;
+  --danger:  #e74c3c;
+  --glass: rgba(255,255,255,0.03);
+  --radius: 10px;
+  --shadow: 0 6px 18px rgba(2,6,23,0.6);
+  --max-width: 1200px;
+  --gap: 16px;
+  --font-sans: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Background layer tuning */
+  --bg-opacity: 0.55;        /* overall image opacity */
+  --bg-blur: 6px;            /* blur amount for background image */
+  --bg-darken: 0.45;         /* darkness overlay (0..1) */
+  --bg-transition: 320ms ease;
+}
+
+/* Global reset & base */
+*{box-sizing:border-box}
+html,body,#app{height:100%}
+body{
+  margin:0;
+  font-family:var(--font-sans);
+  /* solid fallback color only; bg-layer handles photographic background */
+  background: var(--bg-900);
+  color:var(--white);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  line-height:1.45;
+  font-size:15px;
+}
+
+/* App layout */
+.app{display:flex;min-height:100vh;align-items:stretch}
+.sidebar{
+  width:260px;
+  background:linear-gradient(180deg,var(--panel),rgba(27,36,48,0.95));
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  border-right:1px solid rgba(255,255,255,0.03);
+  min-height:100vh;
+}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;object-fit:contain;border-radius:8px;background:var(--glass);padding:6px}
+.brand-title{font-size:18px;margin:0;color:var(--white);letter-spacing:0.4px}
+
+/* Sidebar nav */
+.sidebar-nav{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.side-btn{
+  background:transparent;
+  color:var(--muted);
+  border:0;
+  text-align:left;
+  padding:10px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+  transition:all .18s ease;
+}
+.side-btn:hover{background:rgba(255,255,255,0.02);color:var(--white)}
+.side-btn.active{background:linear-gradient(90deg,rgba(46,166,255,0.12),rgba(30,144,255,0.06));color:var(--accent);box-shadow:inset 0 0 0 1px rgba(46,166,255,0.06)}
+
+/* Sidebar footer */
+.sidebar-footer{margin-top:auto;color:var(--muted);font-size:12px}
+
+/* Main area */
+.main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
+  max-width:100%;
+  position:relative; /* required for bg-layer absolute positioning */
+  overflow:hidden; /* allow page scrolling */
+  background: transparent; /* do not override bg-layer */
+}
+
+/* -------------------------
+   Background layer (global, persistent)
+   - Uses data-bg attribute to switch images via CSS selectors
+   - Paths are relative to css/style.css -> ../assets/images/...
+   - Avoid heavy background-image transitions to prevent flicker
+------------------------- */
+.bg-layer{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background-color:transparent;
+  background-repeat:no-repeat;
+  background-position:center center;
+  background-size:cover;
+  opacity:var(--bg-opacity);
+  filter: blur(var(--bg-blur)) saturate(0.95);
+  transform:scale(1.02);
+  /* only animate opacity/filter for smoothness; avoid animating background-image */
+  transition: opacity var(--bg-transition), filter var(--bg-transition);
+  will-change: opacity, filter;
+}
+
+/* dark overlay to keep content readable */
+.bg-layer::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(rgba(0,0,0,var(--bg-darken)), rgba(0,0,0,var(--bg-darken)));
+  mix-blend-mode:multiply;
+  pointer-events:none;
+}
+
+/* default home background (fallback) */
+.bg-layer[data-bg="home"]{
+  background-image: url('../assets/images/bg-home.jpg');
+}
+
+/* specific location backgrounds (consistent relative paths) */
+.bg-layer[data-bg="Gedung A"]{ background-image: url('../assets/images/bg-gedung-a.jpg'); }
+.bg-layer[data-bg="Gedung B"]{ background-image: url('../assets/images/bg-gedung-b.jpg'); }
+.bg-layer[data-bg="Gedung C"]{ background-image: url('../assets/images/bg-gedung-c.jpg'); }
+.bg-layer[data-bg="Lapangan Upacara"]{ background-image: url('../assets/images/bg-upacara.jpg'); }
+.bg-layer[data-bg="Lapangan Basket"]{ background-image: url('../assets/images/bg-basket.jpg'); }
+.bg-layer[data-bg="Lapangan Tenis"]{ background-image: url('../assets/images/bg-tenis.jpg'); }
+.bg-layer[data-bg="Koperasi"]{ background-image: url('../assets/images/bg-koperasi.jpg'); }
+.bg-layer[data-bg="Kantin"]{ background-image: url('../assets/images/bg-kantin.jpg'); }
+
+/* fallback generic */
+.bg-layer[data-bg="default"]{ background-image: url('../assets/images/bg-home.jpg'); }
+
+/* Ensure page content sits above background */
+.page-container, .topbar, .footer, .page, .page-content, .form-card, .card {
+  position:relative;
+  z-index:2;
+}
+
+/* Header (top) */
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.03);
+  background:linear-gradient(180deg,transparent,rgba(255,255,255,0.01));
+  z-index:3;
+}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.icon-btn{
+  background:transparent;border:0;color:var(--muted);font-size:18px;padding:8px;border-radius:8px;cursor:pointer;
+}
+#page-title{margin:0;font-size:18px;color:var(--white)}
+.user-badge{background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:999px;color:var(--muted);font-weight:600}
+
+/* Page container */
+.page-container{
+  padding:20px;
+  flex:1;
+  max-width:var(--max-width);
+  margin:18px auto;
+  display:block;
+  width:calc(100% - 40px);
+  z-index:3;
+  overflow:auto; /* allow internal scrolling */
+  background: transparent;
+}
+.page{display:none}
+.page.active{display:block}
+
+/* Page navbar (subpage nav) */
+.page-navbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.nav-btn{
+  background:transparent;border:0;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;
+}
+.nav-btn:hover{color:var(--white);background:rgba(255,255,255,0.02)}
+.nav-btn.active{background:linear-gradient(90deg,rgba(46,166,255,0.12),rgba(30,144,255,0.06));color:var(--accent)}
+
+/* Page content */
+.page-content{display:flex;flex-direction:column;gap:18px}
+
+/* Hero */
+.hero{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:18px;border-radius:var(--radius);box-shadow:var(--shadow)}
+.hero h3{margin:0 0 6px 0}
+.muted{color:var(--muted);font-size:13px}
+
+/* Quick grid & cards */
+.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:var(--card);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);box-shadow:0 6px 18px rgba(2,6,23,0.45)}
+.card h4{margin:0 0 8px 0}
+.card-list{color:var(--muted);font-size:14px}
+
+/* Grid cards for lists */
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.grid-item{
+  background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);
+  padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);
+  display:flex;flex-direction:column;gap:8px;
+}
+.grid-item .title{font-weight:700;color:var(--white)}
+.grid-item .meta{color:var(--muted);font-size:13px}
+
+/* Forms */
+.form-card{background:var(--card);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.02)}
+.form-card label{display:block;color:var(--muted);font-size:13px;margin:8px 0 6px}
+.form-card input[type="text"],
+.form-card input[type="password"],
+.form-card input[type="search"],
+.form-card input[type="file"],
+.form-card textarea,
+.form-card select{
+  width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);
+  background:rgba(255,255,255,0.02);color:var(--white);outline:none;font-size:14px;
+}
+.form-card textarea{resize:vertical;min-height:80px}
+.form-actions{display:flex;gap:10px;margin-top:12px;align-items:center}
+
+/* Buttons */
+.btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:700}
+.btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:var(--white);box-shadow:0 6px 14px rgba(30,144,255,0.12)}
+.btn.primary:hover{transform:translateY(-1px)}
+.btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
+.btn.danger{background:var(--danger);color:var(--white)}
+
+/* Utility */
+.hidden{display:none !important}
+.center{display:flex;align-items:center;justify-content:center}
+.search-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.search-row input{flex:1}
+
+/* ========================= */
+/* ADMIN PAGE (baru)         */
+/* ========================= */
+
+/* Navbar Admin */
+#page-admin .page-navbar {
+  display: flex;
+  gap: var(--gap);
+  margin-bottom: 18px;
+}
+#page-admin .page-navbar .nav-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all .18s ease;
+}
+#page-admin .page-navbar .nav-btn:hover {
+  background: rgba(255,255,255,0.02);
+  color: var(--white);
+}
+#page-admin .page-navbar .nav-btn.active {
+  background: linear-gradient(90deg,rgba(46,166,255,0.12),rgba(30,144,255,0.06));
+  color: var(--accent);
+}
+
+/* Form Management */
+#sub-admin-form .selector {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#sub-admin-form select {
+  background: var(--card);
+  color: var(--white);
+  border: 1px solid var(--accent);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+#admin-forms-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(240px,1fr));
+  gap: var(--gap);
+}
+#admin-forms-list .card {
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius);
+  padding: 14px;
+  color: var(--white);
+  box-shadow: var(--shadow);
+}
+#admin-forms-list .card h4 {
+  margin-top: 0;
+  font-size: 16px;
+  color: var(--accent);
+}
+#admin-forms-list .card .actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+#admin-forms-list .card .actions button {
+  flex: 1;
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+#admin-forms-list .card .actions .btn-status {
+  background: var(--accent);
+  color: var(--white);
+}
+#admin-forms-list .card .actions .btn-delete {
+  background: var(--danger);
+  color: var(--white);
+}
+
+/* Account Management */
+#sub-admin-accounts form {
+  background: var(--card);
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 16px;
+}
+#sub-admin-accounts form input,
+#sub-admin-accounts form select {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+  color: var(--white);
+}
+#sub-admin-accounts form button {
+  background: linear-gradient(90deg,var(--accent),var(--accent-2));
+  color: var(--white);
+  border: none;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 6px 14px rgba(30,144,255,0.12);
+}
+#sub-admin-accounts form button:hover {
+  transform: translateY(-1px);
+}
+
+#account-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(260px,1fr));
+  gap: var(--gap);
+}
+#account-list .card {
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius);
+  padding: 14px;
+  color: var(--white);
+  box-shadow: var(--shadow);
+}
+#account-list .card h4 {
+  margin-top: 0;
+  font-size: 16px;
+  color: var(--accent);
+}
+#account-list .card .actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+#account-list .card .actions button {
+  flex: 1;
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+#account-list .card .actions .btn-role {
+  background: var(--accent);
+  color: var(--white);
+}
+#account-list .card .actions .btn-delete {
+  background: var(--danger);
+  color: var(--white);
+}
+
+/* Footer */
+.footer{padding:12px 20px;border-top:1px solid rgba(255,255,255,0.03);text-align:center;color:var(--muted);font-size:13px;z-index:3}
+
+/* Responsive */
+@media (max-width:1000px){
+  .sidebar{width:72px;padding:12px}
+  .brand-title{display:none}
+  .quick-grid{grid-template-columns:repeat(2,1fr)}
+  .page-container{padding:14px}
+}
+@media (max-width:720px){
+  .app{flex-direction:column}
+  .sidebar{width:100%;min-height:auto;display:flex;flex-direction:row;align-items:center;gap:12px;padding:10px}
+  .sidebar-nav{flex-direction:row;gap:6px;overflow:auto}
+  .page-container{width:100%;margin:12px 0}
+  .quick-grid{grid-template-columns:1fr}
+  .grid-cards{grid-template-columns:1fr}
+}
+
+/* Small accessibility tweaks */
+button:focus, input:focus, select:focus, textarea:focus{outline:2px solid rgba(46,166,255,0.12);outline-offset:2px}
+

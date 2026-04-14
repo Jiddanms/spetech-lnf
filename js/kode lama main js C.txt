@@ -1,0 +1,732 @@
+
+/**
+ * main.js
+ * Core frontend logic for Spetech Lost and Found Web
+ *
+ * Responsibilities:
+ * - Sidebar page switching (Home, Lost, Found, Admin, Account)
+ * - Per-page navbar (sub-page) switching
+ * - Wire up forms (lost report, found report, login, register, admin management)
+ * - Minimal client-side validation and fetch wrappers for backend integration
+ * - Hooks for QR scanner and notifier modules (qrscanner.js, notifier.js)
+ *
+ * Assumptions:
+ * - notifier.js exposes: notifier.success(msg), notifier.error(msg), notifier.info(msg)
+ * - qrscanner.js exposes: qrScanner.scan(callback) which calls callback(locationName)
+ * - Backend API base path: /api (adjust server routes accordingly)
+ *
+ * Keep this file efficient, modular, and consistent with index.html IDs/classes.
+ */
+
+/**
+ * main.js
+ * Integrated frontend logic for Spetech Lost and Found Web
+ * - Updated to support token-based auth, admin Form Management & Account Management
+ * - Keeps original responsibilities: navigation, forms, rendering, QR, notifier hooks
+ */
+
+/**
+ * main.js
+ * Core frontend logic for Spetech Lost and Found Web
+ * (Updated: QoL 3B - Account Login <-> Logout behavior)
+ */
+
+/* Utility helpers */
+const $ = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+const on = (el, ev, fn) => el && el.addEventListener(ev, fn);
+
+/* API helper: automatically attach Authorization header when token exists */
+const api = async (path, opts = {}) => {
+  const token = localStorage.getItem('sp_lnf_token');
+  const headers = Object.assign({}, opts.headers || {});
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`/api${path}`, Object.assign({}, opts, { headers }));
+  return res.json();
+};
+
+/* App state */
+const state = {
+  currentPage: 'home',
+  currentSub: null,
+  user: null, // { id, username, role }
+};
+
+/* --- Navigation: pages & subpages --- */
+function showPage(pageId) {
+  $$('.side-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.page === pageId));
+  const titleMap = {
+    home: 'Home',
+    lost: 'Lost',
+    found: 'Found',
+    admin: 'Admin',
+    account: 'Account'
+  };
+  $('#page-title').textContent = titleMap[pageId] || 'Spetech LNF';
+  $$('.page').forEach(p => p.classList.toggle('active', p.dataset.page === pageId));
+  state.currentPage = pageId;
+
+  // default subpage per page
+  switch (pageId) {
+    case 'home': activateSub('home-short-lost'); break;
+    case 'lost': activateSub('lost-list'); break;
+    case 'found': activateSub('found-report'); break;
+    case 'admin': activateSub('admin-form'); break;
+    case 'account': 
+      // if user logged in and account-logout exists, show logout sub; otherwise login
+      const stored = localStorage.getItem('sp_lnf_user');
+      activateSub(stored ? 'account-logout' : 'account-login');
+      break;
+  }
+}
+
+function activateSub(subId) {
+  $$('.page-navbar .nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.sub === subId));
+  const page = $(`#page-${state.currentPage}`);
+  if (!page) return;
+  $$('.subpage', page).forEach(sp => sp.classList.toggle('hidden', sp.id !== `sub-${subId}` && sp.id !== subId));
+  $$('.subpage', page).forEach(sp => {
+    const normalized = sp.id.replace(/^sub-/, '');
+    sp.classList.toggle('hidden', normalized !== subId);
+  });
+  state.currentSub = subId;
+
+  // If account page and sub is account-logout, render its content
+  if (state.currentPage === 'account' && subId === 'account-logout') {
+    renderLogoutSubpage();
+  }
+}
+
+/* --- Init sidebar & page navbar listeners --- */
+function initNavigation() {
+  $$('.side-btn').forEach(btn => {
+    on(btn, 'click', () => showPage(btn.dataset.page));
+  });
+
+  $$('.page-navbar').forEach(nav => {
+    on(nav, 'click', (e) => {
+      const btn = e.target.closest('.nav-btn');
+      if (!btn) return;
+      const sub = btn.dataset.sub;
+      if (state.currentPage === 'home' && sub && sub.startsWith('home-short-')) {
+        const targetPage = sub.replace('home-short-', '');
+        showPage(targetPage);
+        return;
+      }
+      activateSub(sub);
+    });
+  });
+
+  on($('#sidebar-toggle'), 'click', () => {
+    document.querySelector('.sidebar').classList.toggle('collapsed');
+  });
+
+  showPage(state.currentPage);
+}
+
+/* --- Form handlers --- */
+function bindForms() {
+  // Lost report
+  on($('#lost-submit'), 'click', async () => {
+    const name = $('#lost-name').value.trim();
+    const desc = $('#lost-desc').value.trim();
+    const location = $('#lost-location').value;
+    const contact = $('#lost-contact').value.trim();
+
+    if (!name || !desc || !location) {
+      notifier.error('Isi semua field wajib pada laporan kehilangan.');
+      return;
+    }
+
+    try {
+      const payload = { name, description: desc, location, contact, type: 'lost' };
+      await api('/lost/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      notifier.success('Laporan kehilangan berhasil dikirim.');
+      $('#form-lost-report').reset();
+      loadLostList();
+    } catch (err) {
+      console.error(err);
+      notifier.error('Gagal mengirim laporan. Coba lagi.');
+    }
+  });
+
+  // Found report
+  on($('#found-submit'), 'click', async () => {
+    const name = $('#found-name').value.trim();
+    const desc = $('#found-desc').value.trim();
+    const location = $('#found-location').value;
+    const photoInput = $('#found-photo');
+
+    if (!name || !desc || !location) {
+      notifier.error('Isi semua field wajib pada laporan penemuan.');
+      return;
+    }
+
+    try {
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('description', desc);
+      fd.append('location', location);
+      if (photoInput && photoInput.files && photoInput.files[0]) {
+        fd.append('photo', photoInput.files[0]);
+      }
+
+      await fetch('/api/found/add', { method: 'POST', body: fd }).then(r => r.json());
+      notifier.success('Laporan penemuan berhasil dikirim.');
+      $('#form-found-report').reset();
+      loadFoundList();
+    } catch (err) {
+      console.error(err);
+      notifier.error('Gagal mengirim laporan penemuan.');
+    }
+  });
+
+  // Found scan QR
+  on($('#found-scan-qr'), 'click', () => {
+    if (typeof qrScanner === 'undefined' || !qrScanner.scan) {
+      notifier.error('Fitur scan QR belum tersedia.');
+      return;
+    }
+    notifier.info('Membuka scanner QR...');
+    qrScanner.scan((locationName) => {
+      const allowed = ['Gedung A','Gedung B','Gedung C','Lapangan Upacara','Lapangan Basket','Lapangan Tenis','Koperasi','Kantin'];
+      if (allowed.includes(locationName)) {
+        $('#found-location').value = locationName;
+        notifier.success(`Lokasi terisi: ${locationName}`);
+      } else {
+        notifier.error('QR tidak dikenali sebagai lokasi pelaporan.');
+      }
+    });
+  });
+
+  // Login (store token)
+  on($('#login-btn'), 'click', async () => {
+    const username = $('#login-username').value.trim();
+    const password = $('#login-password').value;
+    if (!username || !password) {
+      notifier.error('Masukkan username dan password.');
+      return;
+    }
+    try {
+      const res = await api('/account/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res && res.ok) {
+        state.user = res.user;
+        localStorage.setItem('sp_lnf_user', JSON.stringify(res.user));
+        if (res.token) localStorage.setItem('sp_lnf_token', res.token);
+        updateUserBadge();
+        notifier.success('Login berhasil.');
+        showPage('home');
+        if (state.user && state.user.role === 'admin') {
+          await Promise.all([loadAdminForms(), loadAdminAccounts()]);
+        }
+      } else {
+        notifier.error(res.message || 'Login gagal.');
+      }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat login.');
+    }
+  });
+
+  // Register
+  on($('#register-btn'), 'click', async () => {
+    const username = $('#reg-username').value.trim();
+    const password = $('#reg-password').value;
+    const role = $('#reg-role').value || 'user';
+    if (!username || !password) {
+      notifier.error('Isi username dan password untuk registrasi.');
+      return;
+    }
+    try {
+      const res = await api('/account/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role })
+      });
+      if (res && res.ok) {
+        notifier.success('Registrasi berhasil. Silakan login.');
+        showPage('account');
+        activateSub('account-login');
+      } else {
+        notifier.error(res.message || 'Registrasi gagal.');
+      }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat registrasi.');
+    }
+  });
+
+  // Admin create account (Account Management)
+  on($('#mgmt-create-btn'), 'click', async () => {
+    if (!ensureAdmin()) return;
+    const username = $('#mgmt-username').value.trim();
+    const password = $('#mgmt-password').value;
+    const role = $('#mgmt-role').value;
+    if (!username || !password) {
+      notifier.error('Isi username dan password untuk membuat akun.');
+      return;
+    }
+    try {
+      const res = await api('/admin/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role })
+      });
+      if (res && res.ok) {
+        notifier.success('Akun berhasil dibuat.');
+        $('#form-admin-create').reset();
+        await loadAdminAccounts();
+      } else {
+        notifier.error(res.message || 'Gagal membuat akun.');
+      }
+    } catch (err) {
+      console.error(err);
+      notifier.error('Terjadi kesalahan saat membuat akun.');
+    }
+  });
+
+  // Delegated admin controls (forms & accounts)
+  on(document, 'click', async (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    // Form actions
+    if (btn.closest('#admin-forms-list') || btn.closest('#mgmt-forms-list')) {
+      if (!ensureAdmin()) return;
+      const action = btn.dataset.action;
+      const itemId = btn.dataset.id;
+      if (!action || !itemId) return;
+
+      if (action === 'delete') {
+        if (!confirm('Hapus form ini? Tindakan tidak dapat dibatalkan.')) return;
+        try {
+          const res = await api(`/admin/forms/${itemId}`, { method: 'DELETE' });
+          if (res && res.ok) {
+            notifier.success('Form dihapus.');
+            await Promise.all([loadAdminForms(), loadLostList(), loadFoundList()]);
+          } else notifier.error(res.message || 'Gagal menghapus form.');
+        } catch (err) {
+          console.error(err);
+          notifier.error('Gagal menghapus form.');
+        }
+      }
+
+      if (action === 'set-status') {
+        const select = document.querySelector(`#status-select-${itemId}`);
+        if (!select) return;
+        const newStatus = select.value;
+        try {
+          const res = await api(`/admin/forms/${itemId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+          });
+          if (res && res.ok) {
+            notifier.success('Status diperbarui.');
+            await Promise.all([loadAdminForms(), loadLostList(), loadFoundList()]);
+          } else notifier.error(res.message || 'Gagal memperbarui status.');
+        } catch (err) {
+          console.error(err);
+          notifier.error('Gagal memperbarui status.');
+        }
+      }
+    }
+
+    // Account actions
+    if (btn.closest('#account-list')) {
+      if (!ensureAdmin()) return;
+      const userId = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (!userId || !action) return;
+
+      if (action === 'set-role') {
+        const newRole = prompt('Masukkan role baru (user/admin):', btn.dataset.role || 'user');
+        if (!newRole || !['user','admin'].includes(newRole)) {
+          notifier.error('Role tidak valid.');
+          return;
+        }
+        try {
+          const res = await api(`/admin/accounts/${userId}/role`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole })
+          });
+          if (res && res.ok) {
+            notifier.success('Role diperbarui.');
+            await loadAdminAccounts();
+          } else notifier.error(res.message || 'Gagal memperbarui role.');
+        } catch (err) {
+          console.error(err);
+          notifier.error('Gagal memperbarui role.');
+        }
+      }
+
+      if (action === 'delete-user') {
+        if (!confirm('Hapus akun ini? Tindakan tidak dapat dibatalkan.')) return;
+        try {
+          const res = await api(`/admin/accounts/${userId}`, { method: 'DELETE' });
+          if (res && res.ok) {
+            notifier.success('Akun dihapus.');
+            await loadAdminAccounts();
+          } else notifier.error(res.message || 'Gagal menghapus akun.');
+        } catch (err) {
+          console.error(err);
+          notifier.error('Gagal menghapus akun.');
+        }
+      }
+    }
+  });
+}
+
+/* --- Data loading & rendering --- */
+async function loadLostList() {
+  try {
+    const res = await api('/lost/list');
+    renderItemsGrid('#lost-items-grid', res.items || []);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function loadFoundList() {
+  try {
+    const res = await api('/found/list');
+    renderItemsGrid('#found-items-grid', res.items || []);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+/* Admin loaders (new) */
+async function loadAdminForms(type = '') {
+  try {
+    const q = type ? `?type=${encodeURIComponent(type)}` : '';
+    const res = await api(`/admin/forms${q}`);
+    renderItemsGrid('#admin-forms-list', res.items || [], true);
+    renderMgmtList('#mgmt-forms-list', res.items || []);
+  } catch (err) {
+    console.error('loadAdminForms error', err);
+  }
+}
+
+async function loadAdminAccounts() {
+  try {
+    const res = await api('/admin/accounts');
+    renderAccountList('#account-list', res.users || []);
+  } catch (err) {
+    console.error('loadAdminAccounts error', err);
+  }
+}
+
+/* Render helpers */
+function renderItemsGrid(containerSelector, items = [], adminControls = false) {
+  const container = $(containerSelector);
+  if (!container) return;
+  container.innerHTML = '';
+  if (!items.length) {
+    container.innerHTML = `<div class="muted">Tidak ada data.</div>`;
+    return;
+  }
+  items.forEach(it => {
+    const el = document.createElement('div');
+    el.className = 'grid-item';
+    el.innerHTML = `
+      <div class="title">${escapeHtml(it.name)}</div>
+      <div class="meta">${escapeHtml(it.location)} • ${escapeHtml(it.status || '')}</div>
+      <div class="meta">${escapeHtml(it.description || '')}</div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        ${adminControls ? adminControlHtml(it) : ''}
+        <button class="btn secondary" onclick="viewDetails('${it.id}')">Detail</button>
+      </div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+function adminControlHtml(item) {
+  const statuses = ['pending', 'verified', 'completed', 'archived', 'deleted'];
+  const options = statuses.map(s => `<option value="${s}" ${s===item.status?'selected':''}>${capitalize(s)}</option>`).join('');
+  return `
+    <select id="status-select-${item.id}" class="select-status">${options}</select>
+    <button class="btn primary" data-action="set-status" data-id="${item.id}">Simpan</button>
+    <button class="btn danger" data-action="delete" data-id="${item.id}">Hapus</button>
+  `;
+}
+
+function renderMgmtList(containerSelector, items = []) {
+  const container = $(containerSelector);
+  if (!container) return;
+  container.innerHTML = '';
+  if (!items.length) {
+    container.innerHTML = `<div class="muted">Tidak ada form untuk dikelola.</div>`;
+    return;
+  }
+  items.forEach(it => {
+    const el = document.createElement('div');
+    el.className = 'grid-item';
+    el.innerHTML = `
+      <div class="title">${escapeHtml(it.name)}</div>
+      <div class="meta">Tipe: ${escapeHtml(it.type || 'unknown')} • Lokasi: ${escapeHtml(it.location)}</div>
+      <div class="meta">${escapeHtml(it.description || '')}</div>
+      <div class="mgmt-controls" style="margin-top:8px">
+        ${adminControlHtml(it)}
+      </div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+/* New: render account list */
+function renderAccountList(containerSelector, users = []) {
+  const container = $(containerSelector);
+  if (!container) return;
+  container.innerHTML = '';
+  if (!users.length) {
+    container.innerHTML = `<div class="muted">Tidak ada akun terdaftar.</div>`;
+    return;
+  }
+  users.forEach(u => {
+    const el = document.createElement('div');
+    el.className = 'grid-item';
+    el.innerHTML = `
+      <div class="title">${escapeHtml(u.username)}</div>
+      <div class="meta">Role: ${escapeHtml(u.role)} • Created: ${escapeHtml(u.createdAt || '')}</div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="btn primary" data-action="set-role" data-id="${u.id}" data-role="${u.role}">Ubah Role</button>
+        <button class="btn danger" data-action="delete-user" data-id="${u.id}">Hapus</button>
+      </div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+/* --- Small utilities --- */
+function escapeHtml(s = '') {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function capitalize(s='') { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+/* --- Misc actions --- */
+function viewDetails(id) {
+  notifier.info(`Buka detail item: ${id}`);
+}
+
+/* --- Auth helpers (UPDATED) --- */
+
+/**
+ * updateUserBadge()
+ * - Menangani badge user, visibilitas admin nav, dan toggle Login <-> Logout pada Account subpage
+ *
+ * REPLACES previous updateUserBadge implementation.
+ */
+function updateUserBadge() {
+  const badge = $('#user-badge');
+  const stored = localStorage.getItem('sp_lnf_user');
+
+  // helper: hide/show any nav buttons that point to admin
+  const setAdminNavVisibility = (visible) => {
+    // Sidebar admin button
+    const adminSidebarBtn = $('#btn-page-admin');
+    if (adminSidebarBtn) adminSidebarBtn.style.display = visible ? '' : 'none';
+
+    // Any page-navbar buttons that link to admin subpages (data-sub starting with 'admin' or 'home-short-admin')
+    $$('.page-navbar .nav-btn').forEach(btn => {
+      const sub = btn.dataset.sub || '';
+      if (sub && (sub.startsWith('admin') || sub === 'home-short-admin')) {
+        btn.style.display = visible ? '' : 'none';
+      }
+    });
+
+    // Home shortcuts (in case they are outside .page-navbar)
+    $$('.nav-btn[data-sub="home-short-admin"]').forEach(btn => {
+      btn.style.display = visible ? '' : 'none';
+    });
+  };
+
+  // helper: toggle Account subpage button (login <-> logout)
+  const setAccountLoginLogout = (isLoggedIn, username) => {
+    // find the account subpage nav button that originally points to 'account-login'
+    const accountNav = document.querySelector('.page-account .page-navbar');
+    if (!accountNav) return;
+
+    // Prefer to find a nav button with data-sub 'account-login' or 'account-logout'
+    let loginBtn = accountNav.querySelector('.nav-btn[data-sub="account-login"]');
+    if (!loginBtn) {
+      // fallback: find any nav-btn that contains 'Login' text
+      loginBtn = accountNav.querySelector('.nav-btn');
+    }
+
+    if (loginBtn) {
+      if (isLoggedIn) {
+        loginBtn.textContent = 'Logout';
+        loginBtn.dataset.sub = 'account-logout';
+        loginBtn.classList.add('nav-logout-btn');
+      } else {
+        loginBtn.textContent = 'Login';
+        loginBtn.dataset.sub = 'account-login';
+        loginBtn.classList.remove('nav-logout-btn');
+      }
+    }
+
+    // If currently viewing account-logout but user logged out, redirect to account-login
+    if (!isLoggedIn && state.currentPage === 'account' && state.currentSub === 'account-logout') {
+      activateSub('account-login');
+    }
+  };
+
+  if (stored) {
+    try {
+      state.user = JSON.parse(stored);
+    } catch (e) {
+      state.user = null;
+    }
+    if (state.user) {
+      badge.textContent = `${state.user.username} (${state.user.role})`;
+      badge.style.color = 'var(--accent)';
+      const isAdmin = state.user.role === 'admin';
+      setAdminNavVisibility(isAdmin);
+      setAccountLoginLogout(true, state.user.username);
+      return;
+    }
+  }
+
+  // default: guest
+  state.user = null;
+  badge.textContent = 'Guest';
+  badge.style.color = 'var(--muted)';
+  setAdminNavVisibility(false);
+  setAccountLoginLogout(false, null);
+}
+
+/**
+ * showAccountSubpage(sub)
+ * - helper untuk menampilkan subpage di page Account
+ * - sub values: 'account-login', 'account-register', 'account-logout'
+ */
+function showAccountSubpage(sub) {
+  showPage('account');
+  activateSub(sub);
+}
+
+/**
+ * renderLogoutSubpage()
+ * - isi konten subpage logout dengan username dan tombol logout
+ */
+function renderLogoutSubpage() {
+  const container = document.querySelector('.page-account .subpage[data-sub="account-logout"] .content');
+  if (!container) return;
+
+  const username = state.user ? state.user.username : 'Guest';
+  container.innerHTML = `
+    <div class="logout-box" style="padding:12px;">
+      <p><strong>Username:</strong> <span id="logout-username">${escapeHtml(username)}</span></p>
+      <div style="margin-top:12px;">
+        <button id="btn-logout-action" class="btn danger">Logout</button>
+      </div>
+    </div>
+  `;
+
+  const btn = $('#btn-logout-action');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      await handleLogout();
+    });
+  }
+}
+
+/**
+ * handleLogout()
+ * - panggil API logout, hapus localStorage, update UI
+ */
+async function handleLogout() {
+  try {
+    const token = localStorage.getItem('sp_lnf_token');
+    if (token) {
+      await fetch('/api/account/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(()=>{});
+    }
+  } catch (e) {
+    console.warn('Logout request failed', e);
+  } finally {
+    // clear client state
+    localStorage.removeItem('sp_lnf_token');
+    localStorage.removeItem('sp_lnf_user');
+    state.user = null;
+    updateUserBadge();
+    notifier.success('Berhasil logout.');
+    showPage('account');
+    activateSub('account-login');
+  }
+}
+
+function ensureAdmin() {
+  if (!state.user || state.user.role !== 'admin') {
+    notifier.error('Akses ditolak. Fitur ini hanya untuk admin.');
+    return false;
+  }
+  const token = localStorage.getItem('sp_lnf_token');
+  if (!token) {
+    notifier.error('Token tidak ditemukan. Silakan login ulang.');
+    return false;
+  }
+  return true;
+}
+
+/* --- Initial load --- */
+async function initialLoad() {
+  updateUserBadge();
+  initNavigation();
+  bindForms();
+
+  // Load lists for home quick view
+  try {
+    const [foundRes, lostRes] = await Promise.all([
+      api('/found/recent').catch(()=>({items:[] })),
+      api('/lost/recent').catch(()=>({items:[] }))
+    ]);
+    const rf = $('#recent-found-list');
+    const rl = $('#recent-lost-list');
+    if (rf) rf.innerHTML = (foundRes.items || []).slice(0,5).map(i => `<div>${escapeHtml(i.name)} <small class="muted">(${escapeHtml(i.location)})</small></div>`).join('') || '<div class="muted">—</div>';
+    if (rl) rl.innerHTML = (lostRes.items || []).slice(0,5).map(i => `<div>${escapeHtml(i.name)} <small class="muted">(${escapeHtml(i.location)})</small></div>`).join('') || '<div class="muted">—</div>';
+  } catch (err) {
+    console.error(err);
+  }
+
+  // Load lists for pages
+  await Promise.all([loadLostList(), loadFoundList()]);
+
+  // If logged in and admin, load admin data
+  const stored = localStorage.getItem('sp_lnf_user');
+  if (stored) {
+    try {
+      state.user = JSON.parse(stored);
+      updateUserBadge();
+      if (state.user && state.user.role === 'admin') {
+        await Promise.all([loadAdminForms(), loadAdminAccounts()]);
+      }
+    } catch (e) {
+      state.user = null;
+    }
+  }
+}
+
+/* --- Expose some functions for inline handlers (viewDetails uses this) --- */
+window.viewDetails = viewDetails;
+
+/* Start app when DOM ready */
+document.addEventListener('DOMContentLoaded', () => {
+  initialLoad().catch(err => {
+    console.error('Init error', err);
+    notifier.error('Terjadi kesalahan inisialisasi aplikasi.');
+  });
+});
