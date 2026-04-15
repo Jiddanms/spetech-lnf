@@ -5,3 +5,5 @@ npm-debug.log
 .git
 .gitignore
 .env
+.vscode
+coverage
