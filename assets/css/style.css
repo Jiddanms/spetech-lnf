@@ -125,16 +125,16 @@ body{
 }
 
 /* Background image paths (relative to css file) */
-.bg-layer[data-bg="home"]{ background-image: url('../assets/images/bg-home.jpg'); }
-.bg-layer[data-bg="Gedung A"]{ background-image: url('../assets/images/bg-gedung-a.jpg'); }
-.bg-layer[data-bg="Gedung B"]{ background-image: url('../assets/images/bg-gedung-b.jpg'); }
-.bg-layer[data-bg="Gedung C"]{ background-image: url('../assets/images/bg-gedung-c.jpg'); }
-.bg-layer[data-bg="Lapangan Upacara"]{ background-image: url('../assets/images/bg-upacara.jpg'); }
-.bg-layer[data-bg="Lapangan Basket"]{ background-image: url('../assets/images/bg-basket.jpg'); }
-.bg-layer[data-bg="Lapangan Tenis"]{ background-image: url('../assets/images/bg-tenis.jpg'); }
-.bg-layer[data-bg="Koperasi"]{ background-image: url('../assets/images/bg-koperasi.jpg'); }
-.bg-layer[data-bg="Kantin"]{ background-image: url('../assets/images/bg-kantin.jpg'); }
-.bg-layer[data-bg="default"]{ background-image: url('../assets/images/bg-home.jpg'); }
+.bg-layer[data-bg="home"]{ background-image: url('../assets/img/bg-home.jpg'); }
+.bg-layer[data-bg="Gedung A"]{ background-image: url('../assets/img/bg-gedung-a.jpg'); }
+.bg-layer[data-bg="Gedung B"]{ background-image: url('../assets/img/bg-gedung-b.jpg'); }
+.bg-layer[data-bg="Gedung C"]{ background-image: url('../assets/img/bg-gedung-c.jpg'); }
+.bg-layer[data-bg="Lapangan Upacara"]{ background-image: url('../assets/img/bg-upacara.jpg'); }
+.bg-layer[data-bg="Lapangan Basket"]{ background-image: url('../assets/img/bg-basket.jpg'); }
+.bg-layer[data-bg="Lapangan Tenis"]{ background-image: url('../assets/img/bg-tenis.jpg'); }
+.bg-layer[data-bg="Koperasi"]{ background-image: url('../assets/img/bg-koperasi.jpg'); }
+.bg-layer[data-bg="Kantin"]{ background-image: url('../assets/img/bg-kantin.jpg'); }
+.bg-layer[data-bg="default"]{ background-image: url('../assets/img/bg-home.jpg'); }
 
 /* Ensure content above background */
 .page-container, .topbar, .footer, .page, .page-content, .form-card, .card {
