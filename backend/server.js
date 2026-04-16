@@ -527,8 +527,9 @@ api.get('/health', (req, res) => res.json({ ok: true, uptime: process.uptime() }
     }
 
     // Start server
-    app.listen(PORT, () => {
-      console.log(`Spetech LNF server running on http://localhost:${PORT}`);
+    app.listen(process.env.PORT || 3000, () => {
+      const port = process.env.PORT || 3000;
+      console.log(`Spetech LNF server running on http://localhost:${port}`);
       console.log(`Serving frontend from ${FRONTEND_DIR}`);
     });
   } catch (err) {
