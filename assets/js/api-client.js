@@ -3,6 +3,7 @@
  * assets/js/api-client.js
  * Central API Client untuk Spetech Lost and Found.
  * Menangani fetch ke Cloudflare Workers dengan manajemen token otomatis.
+ * UPDATE QoL 6.15: Payload Cleaning & Management Power
  */
 
 const apiClient = {
@@ -67,9 +68,11 @@ const apiClient = {
             body: JSON.stringify(userData) 
         }),
         checkSession: () => apiClient.fetch('/auth/me', { method: 'GET' }),
-        // Update Besar: Get Users untuk Admin
+        
+        // QoL 6.15: Get Users untuk Admin Management
         getUsers: () => apiClient.fetch('/admin/users', { method: 'GET' }),
-        // Update Besar: Delete User untuk Admin
+        
+        // QoL 6.15: Delete User
         deleteUser: (id) => apiClient.fetch('/admin/users', { 
             method: 'DELETE', 
             body: JSON.stringify({ id }) 
@@ -82,11 +85,15 @@ const apiClient = {
         getFound: () => apiClient.fetch('/items/found', { method: 'GET' }),
         getDetail: (id) => apiClient.fetch(`/items/detail?id=${id}`, { method: 'GET' }),
         
-        // Lapor Kehilangan (Lost)
-        reportLost: (itemData) => apiClient.fetch('/items/lost', { 
-            method: 'POST', 
-            body: JSON.stringify(itemData) 
-        }),
+        // Lapor Kehilangan (Lost) - Fix Missing Field Payload
+        reportLost: (itemData) => {
+            // QoL 6.15: Pastikan owner_name tidak ikut dikirim jika kosong untuk menghindari error DB
+            const { owner_name, ...cleanData } = itemData;
+            return apiClient.fetch('/items/lost', { 
+                method: 'POST', 
+                body: JSON.stringify(cleanData) 
+            });
+        },
         
         // Lapor Penemuan (Found)
         reportFound: (itemData) => apiClient.fetch('/items/found', { 
@@ -94,13 +101,13 @@ const apiClient = {
             body: JSON.stringify(itemData) 
         }),
 
-        // Update Besar: Update Status untuk Admin
+        // QoL 6.15: Admin Update Status
         updateStatus: (id, statusData) => apiClient.fetch('/admin/forms', { 
             method: 'PATCH', 
             body: JSON.stringify({ id, ...statusData }) 
         }),
 
-        // Update Besar: Delete Item untuk Admin
+        // QoL 6.15: Admin Delete Item
         delete: (id) => apiClient.fetch('/admin/forms', { 
             method: 'DELETE', 
             body: JSON.stringify({ id }) 
@@ -114,14 +121,12 @@ const apiClient = {
             const formData = new FormData();
             formData.append('file', file);
 
-            // Fetch khusus karena tidak menggunakan Content-Type application/json
             const token = localStorage.getItem('sp_lnf_token');
             const res = await fetch(`${apiClient.baseUrl}/items/upload`, {
                 method: 'POST',
                 body: formData,
                 headers: {
                     'Authorization': `Bearer ${token}`
-                    // Browser akan otomatis set Content-Type: multipart/form-data beserta boundary
                 }
             });
             const data = await res.json();
@@ -129,16 +134,18 @@ const apiClient = {
         }
     },
 
-    // --- ADMIN API (Manajemen Tambahan) ---
+    // --- ADMIN API (Locations & Analytics) ---
     admin: {
         // Management Location
         getLocations: () => apiClient.fetch('/admin/locations', { method: 'GET' }),
-        // Update Besar: Add Location
+        
+        // QoL 6.15: Add New School Area
         addLocation: (locationData) => apiClient.fetch('/admin/locations', { 
             method: 'POST', 
             body: JSON.stringify(locationData) 
         }),
-        // Update Besar: Delete Location
+        
+        // QoL 6.15: Delete Area
         deleteLocation: (id) => apiClient.fetch('/admin/locations', { 
             method: 'DELETE', 
             body: JSON.stringify({ id }) 
@@ -146,5 +153,5 @@ const apiClient = {
     }
 };
 
-// Global export
+// Global export agar bisa diakses oleh main.js
 window.apiClient = apiClient;
