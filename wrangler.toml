@@ -6,4 +6,4 @@ pages_build_output_dir = "."
 [[d1_databases]]
 binding = "DB" # Nama variabel yang dipanggil di API (functions)
 database_name = "spetech_db"
-database_id = "MASUKKAN_ID_DATABASE_D1_KAMU_DISINI"
+database_id = "788d2f09-5499-4224-8c28-586e066e7f2c"
