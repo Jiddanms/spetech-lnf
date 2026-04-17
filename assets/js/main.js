@@ -53,7 +53,11 @@ function initNavigation() {
         // Auto-fill input lokasi (pastikan ID input sesuai di index.html)
         setTimeout(() => {
             const locationInput = $('#found-location-input'); // Sesuaikan ID form kamu
-            if (locationInput) locationInput.value = qrLocation;
+            if (locationInput) {
+                locationInput.value = qrLocation;
+                // Trigger update background untuk lokasi dari QR
+                updateBackground(qrLocation);
+            }
         }, 500);
     }
 }
@@ -154,7 +158,7 @@ async function handleLogin(e) {
         localStorage.setItem('sp_lnf_token', res.data.token);
         localStorage.setItem('sp_lnf_user', JSON.stringify(res.data.user));
         window.utils.showToast(`Selamat datang, ${res.data.user.username}!`, 'success');
-        location.reload(); // Refresh untuk update state global
+        location.reload(); 
     } else {
         window.utils.showToast(res.data.error, 'error');
     }
@@ -165,7 +169,6 @@ async function handleReport(type) {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
 
-    // Jika ada file foto
     const fileInput = $(`#${type}-photo`);
     if (fileInput?.files[0]) {
         const uploadRes = await window.apiClient.items.uploadImage(fileInput.files[0]);
@@ -187,7 +190,14 @@ async function handleReport(type) {
  * 5. INITIAL LOAD
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    // Cek Sesi User
+    // 5a. Logic Background Berdasarkan Memory
+    const savedBg = localStorage.getItem('sp_current_bg');
+    const bgOverlay = document.getElementById('bg-overlay');
+    if (bgOverlay) {
+        bgOverlay.style.backgroundImage = savedBg ? `url('${savedBg}')` : "url('assets/img/bg-default.jpg')";
+    }
+
+    // 5b. Cek Sesi User
     const sessionRes = await window.apiClient.auth.checkSession();
     if (sessionRes.ok && sessionRes.data.loggedIn) {
         state.user = sessionRes.data.user;
@@ -196,7 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initNavigation();
     
-    // Event Listeners untuk Form (Contoh)
+    // Event Listeners
     $('#btn-login-action')?.addEventListener('click', handleLogin);
     $('#btn-submit-lost')?.addEventListener('click', () => handleReport('lost'));
     $('#btn-submit-found')?.addEventListener('click', () => handleReport('found'));
@@ -212,11 +222,30 @@ function updateUIForUser() {
 }
 
 function viewDetail(id) {
-    // Logika modal detail barang
     window.apiClient.items.getDetail(id).then(res => {
         if (res.ok) {
-            // Tampilkan modal (logika modal bisa ditambahkan di sini)
             console.log("Detail Barang:", res.data);
         }
     });
 }
+
+/**
+ * 6. DYNAMIC BACKGROUND LOGIC
+ */
+const updateBackground = (locationValue) => {
+    const bgOverlay = document.getElementById('bg-overlay');
+    if (!bgOverlay || !locationValue || locationValue === 'default') return;
+
+    const fileName = locationValue.toLowerCase().replace(/\s+/g, '-');
+    const imgPath = `assets/img/bg-${fileName}.jpg`;
+
+    bgOverlay.style.backgroundImage = `url('${imgPath}')`;
+    localStorage.setItem('sp_current_bg', imgPath);
+};
+
+// Listener untuk select lokasi di form Lost/Found
+document.addEventListener('change', (e) => {
+    if (e.target.id === 'location-select-trigger' || e.target.name === 'location_name') {
+        if(e.target.value) updateBackground(e.target.value);
+    }
+});

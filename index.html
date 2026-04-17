@@ -6,33 +6,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spetech Lost and Found | SMP Techno</title>
     
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-    
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 
+    <div id="bg-overlay" class="bg-overlay"></div>
+
     <div class="app-container">
         <aside class="sidebar">
             <div class="brand">
-                <img src="assets/img/logo.png" alt="Logo" class="logo-img">
-                <h1>Spetech LNF</h1>
+                <div class="logo-wrapper">
+                    <img src="assets/img/logo.png" alt="Logo" class="logo-img">
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">SPETECH</span>
+                    <span class="brand-sub">Lost & Found</span>
+                </div>
             </div>
             <nav class="sidebar-nav">
                 <button class="side-btn active" id="btn-page-home" data-page="home">
-                    <span>🏠</span> Home
+                    <i data-lucide="layout-dashboard"></i> <span>Home</span>
                 </button>
                 <button class="side-btn" id="btn-page-lost" data-page="lost">
-                    <span>🔍</span> Lost
+                    <i data-lucide="search"></i> <span>Lost</span>
                 </button>
                 <button class="side-btn" id="btn-page-found" data-page="found">
-                    <span>🎁</span> Found
+                    <i data-lucide="package"></i> <span>Found</span>
                 </button>
                 <button class="side-btn hidden" id="btn-page-admin" data-page="admin">
-                    <span>🛠️</span> Admin
+                    <i data-lucide="shield-check"></i> <span>Admin</span>
                 </button>
                 <button class="side-btn" id="btn-page-account" data-page="account">
-                    <span>👤</span> Account
+                    <i data-lucide="user-circle"></i> <span>Account</span>
                 </button>
             </nav>
         </aside>
@@ -40,131 +47,68 @@
         <main class="main-content">
             
             <section id="page-home" class="page">
-                <header class="page-header">
-                    <h2>Dashboard Sekolah</h2>
-                    <p class="text-muted">Selamat datang di Sistem Lost and Found SMP Techno.</p>
-                </header>
-                
-                <div class="stats-grid grid-container">
-                    <div class="card stat-card">
-                        <h3>Barang Temuan Baru</h3>
-                        <div id="home-recent-found" class="recent-list">
-                            </div>
+                <div class="home-hero">
+                    <h1>Selamat Datang di Portal Spetech</h1>
+                    <p>Sistem pelaporan kehilangan dan penemuan barang SMP Techno terintegrasi.</p>
+                </div>
+
+                <div class="guide-section card">
+                    <div class="section-title">
+                        <i data-lucide="info"></i>
+                        <h3>Panduan Singkat</h3>
+                    </div>
+                    <div class="guide-steps">
+                        <div class="step">
+                            <span class="step-num">01</span>
+                            <p><strong>Cari:</strong> Periksa daftar barang penemuan di menu Found.</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-num">02</span>
+                            <p><strong>Lapor:</strong> Jika kehilangan, isi form di menu Lost secara detail.</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-num">03</span>
+                            <p><strong>Klaim:</strong> Hubungi admin di ruang kesiswaan untuk verifikasi.</p>
+                        </div>
                     </div>
                 </div>
-            </section>
 
-            <section id="page-lost" class="page hidden">
-                <nav class="sub-navbar">
-                    <button class="nav-btn active" data-sub="list">Daftar Barang</button>
-                    <button class="nav-btn" data-sub="report">Lapor Kehilangan</button>
-                </nav>
-
-                <div id="sub-lost-list" class="subpage">
-                    <div id="lost-list-container" class="grid-container"></div>
-                </div>
-
-                <div id="sub-lost-report" class="subpage hidden">
-                    <div class="form-container">
-                        <h3>Form Kehilangan Barang</h3>
-                        <form id="form-lost">
-                            <div class="input-group">
-                                <label>Nama Barang</label>
-                                <input type="text" name="item_name" placeholder="Contoh: Kunci Motor" required>
-                            </div>
-                            <div class="input-group">
-                                <label>Lokasi Terakhir Diingat</label>
-                                <select name="location_name" required>
-                                    <option value="">Pilih Lokasi...</option>
-                                    <option>Gedung A</option><option>Gedung B</option><option>Gedung C</option>
-                                    <option>Kantin</option><option>Koperasi</option><option>Lapangan</option>
-                                </select>
-                            </div>
-                            <div class="input-group">
-                                <label>Deskripsi Detail</label>
-                                <textarea name="description" placeholder="Warna, merk, atau ciri khusus..."></textarea>
-                            </div>
-                            <button type="button" id="btn-submit-lost" class="btn-primary">Kirim Laporan</button>
-                        </form>
+                <div class="home-grid">
+                    <div class="card">
+                        <div class="section-title"><h3>Kehilangan Terbaru</h3></div>
+                        <div id="home-recent-lost" class="compact-list"></div>
+                    </div>
+                    <div class="card">
+                        <div class="section-title"><h3>Temuan Terbaru</h3></div>
+                        <div id="home-recent-found" class="compact-list"></div>
+                    </div>
+                    <div class="card location-card">
+                        <div class="section-title"><h3>Lokasi Tersedia</h3></div>
+                        <div class="location-badges" id="available-locations">
+                            <span class="loc-tag">Gedung A</span><span class="loc-tag">Gedung B</span>
+                            <span class="loc-tag">Gedung C</span><span class="loc-tag">Kantin</span>
+                            <span class="loc-tag">Koperasi</span><span class="loc-tag">Lapangan</span>
+                        </div>
                     </div>
                 </div>
             </section>
 
             <section id="page-found" class="page hidden">
                 <nav class="sub-navbar">
-                    <button class="nav-btn active" data-sub="report">Lapor Barang</button>
-                    <button class="nav-btn" data-sub="list">Daftar Kehilangan</button>
+                    <button class="nav-btn active" data-sub="report"><i data-lucide="edit-3"></i> Lapor</button>
+                    <button class="nav-btn" data-sub="list"><i data-lucide="list"></i> Daftar</button>
                 </nav>
-
-                <div id="sub-found-report" class="subpage">
-                    <div class="form-container">
-                        <h3>Lapor Penemuan Barang</h3>
+                <div class="subpage" id="sub-found-report">
+                    <div class="form-container card">
                         <form id="form-found">
-                            <div class="input-group">
-                                <label>Nama Barang yang Ditemukan</label>
-                                <input type="text" name="item_name" required>
-                            </div>
-                            <div class="input-group">
-                                <label>Lokasi Penemuan (Auto-fill via QR)</label>
-                                <input type="text" id="found-location-input" name="location_name" placeholder="Scan QR atau isi manual" required>
-                            </div>
-                            <div class="input-group">
-                                <label>Foto Barang</label>
-                                <input type="file" id="found-photo" accept="image/*">
-                            </div>
-                            <div class="input-group">
-                                <label>Nama Penemu</label>
-                                <input type="text" name="reporter_name" required>
-                            </div>
-                            <button type="button" id="btn-submit-found" class="btn-primary">Posting Penemuan</button>
-                        </form>
-                    </div>
-                </div>
-
-                <div id="sub-found-list" class="subpage hidden">
-                    <div id="found-list-container" class="grid-container"></div>
-                </div>
-            </section>
-
-            <section id="page-admin" class="page hidden">
-                <nav class="sub-navbar">
-                    <button class="nav-btn active" data-sub="forms">Form Management</button>
-                    <button class="nav-btn" data-sub="accounts">Account Management</button>
-                    <button class="nav-btn" data-sub="locations">Location Management</button>
-                </nav>
-                
-                <div id="sub-admin-forms" class="subpage">
-                    <div id="admin-forms-table" class="admin-table-wrapper">
-                        </div>
-                </div>
-
-                <div id="sub-admin-locations" class="subpage hidden">
-                    <div class="form-container">
-                        <h4>Tambah Lokasi QR Baru</h4>
-                        <div class="input-group">
-                            <input type="text" id="new-location-name" placeholder="Nama Gedung/Area">
-                            <button class="btn-primary" style="margin-top:10px" onclick="addLocation()">Simpan Lokasi</button>
-                        </div>
-                    </div>
-                    <div id="admin-locations-list" class="grid-container"></div>
-                </div>
-            </section>
-
-            <section id="page-account" class="page hidden">
-                <div id="sub-account-login" class="subpage">
-                    <div class="form-container">
-                        <h3 id="account-status-text">Login ke Spetech LNF</h3>
-                        <form id="form-login">
-                            <div class="input-group">
-                                <label>Username</label>
-                                <input type="text" id="login-username" required>
-                            </div>
-                            <div class="input-group">
-                                <label>Password</label>
-                                <input type="password" id="login-password" required>
-                            </div>
-                            <button type="button" id="btn-login-action" class="btn-primary">Masuk</button>
-                        </form>
+                            <label>Lokasi Kejadian</label>
+                            <select name="location_name" id="location-select-trigger" required>
+                                <option value="default">Pilih Lokasi...</option>
+                                <option value="gedung-a">Gedung A</option>
+                                <option value="gedung-b">Gedung B</option>
+                                <option value="kantin">Kantin</option>
+                            </select>
+                            </form>
                     </div>
                 </div>
             </section>
@@ -175,6 +119,6 @@
     <script src="assets/js/utils.js"></script>
     <script src="assets/js/api-client.js"></script>
     <script src="assets/js/main.js"></script>
-
+    <script>lucide.createIcons();</script>
 </body>
 </html>
