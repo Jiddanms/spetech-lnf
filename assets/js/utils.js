@@ -90,6 +90,31 @@ const utils = {
         };
         const s = statusMap[status] || { label: status, class: '' };
         return `<span class="badge ${s.class}">${s.label}</span>`;
+    },
+
+    /**
+     * QoL: Modal Detail System
+     * Menampilkan modal pop-up dengan konten dinamis
+     */
+    showModal: (contentHtml) => {
+        const modal = document.getElementById('modal-detail');
+        const body = document.getElementById('detail-content-body');
+        if (modal && body) {
+            body.innerHTML = contentHtml;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Lock scroll
+        }
+    },
+
+    /**
+     * QoL: Hide Modal Detail
+     */
+    hideModal: () => {
+        const modal = document.getElementById('modal-detail');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto'; // Unlock scroll
+        }
     }
 };
 

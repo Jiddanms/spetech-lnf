@@ -16,13 +16,13 @@
 
     <div class="app-shell">
         <aside class="sidebar">
-            <div class="brand" style="flex-direction: row; gap: 12px; padding: 30px 20px; align-items: center; text-align: left;">
+            <div class="brand">
                 <div class="brand-logo">
-                    <img src="assets/img/logo.png" alt="Logo" style="width: 40px; margin-bottom: 0;">
+                    <img src="assets/img/logo.png" alt="Logo">
                 </div>
                 <div class="brand-info">
-                    <span class="title" style="font-size: 1.1rem;">SPETECH</span>
-                    <span class="subtitle" style="font-size: 0.65rem;">Lost & Found</span>
+                    <span class="title">SPETECH</span>
+                    <span class="subtitle">Lost & Found</span>
                 </div>
             </div>
 
@@ -39,7 +39,9 @@
                 <button class="side-item hidden" id="btn-page-admin" data-page="admin">
                     <i data-lucide="shield-check"></i> <span>Admin Panel</span>
                 </button>
+                
                 <div class="nav-spacer"></div>
+                
                 <button class="side-item" id="btn-page-account" data-page="account">
                     <i data-lucide="user-circle"></i> <span>Account</span>
                 </button>
@@ -50,61 +52,66 @@
             
             <section id="page-home" class="page">
                 <div class="hero-banner">
-                    <h1 class="glitch-text">Spetech LNF</h1>
-                    <p class="text-dim">Sistem pelaporan kehilangan dan penemuan barang SMP Techno.</p>
+                    <h1 class="glitch-text">Selamat Datang</h1>
+                    <p style="color: var(--text-dim);">Sistem Terintegrasi Penemuan dan Kehilangan Barang Spetech.</p>
                 </div>
-                
+
                 <div class="guide-grid">
                     <div class="guide-item">
                         <span class="badge">Langkah 1</span>
-                        <p>Cek daftar barang temuan di menu Found.</p>
+                        <h3>Cari Barang</h3>
+                        <p>Cek daftar barang temuan atau laporkan kehilangan anda segera.</p>
                     </div>
                     <div class="guide-item">
                         <span class="badge">Langkah 2</span>
-                        <p>Lapor jika Anda kehilangan atau menemukan barang.</p>
+                        <h3>Verifikasi</h3>
+                        <p>Tim admin akan melakukan verifikasi terhadap setiap laporan yang masuk.</p>
                     </div>
                     <div class="guide-item">
                         <span class="badge">Langkah 3</span>
-                        <p>Temui admin untuk verifikasi pengambilan barang.</p>
+                        <h3>Ambil Barang</h3>
+                        <p>Datang ke pusat informasi dengan membawa bukti kepemilikan.</p>
                     </div>
                 </div>
 
-                <div style="margin-top: 40px;">
-                    <h3 class="card-header"><i data-lucide="map"></i> Lokasi QR Terdaftar</h3>
-                    <div class="location-cloud" style="margin-top: 15px;">
-                        <span class="tag">Gedung A</span>
-                        <span class="tag">Gedung B</span>
-                        <span class="tag">Gedung C</span>
-                        <span class="tag">Lapangan Upacara</span>
-                        <span class="tag">Lapangan Basket</span>
-                        <span class="tag">Lapangan Tenis</span>
-                        <span class="tag">Koperasi</span>
-                        <span class="tag">Kantin</span>
+                <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="glass-card">
+                        <div class="card-header"><i data-lucide="alert-circle" class="icon-accent"></i> Recent Lost</div>
+                        <div id="home-recent-lost" class="recent-list">
+                            <p class="text-dim">Memuat data terbaru...</p>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <div class="card-header"><i data-lucide="check-circle" class="icon-accent"></i> Recent Found</div>
+                        <div id="home-recent-found" class="recent-list">
+                            <p class="text-dim">Memuat data terbaru...</p>
+                        </div>
                     </div>
                 </div>
             </section>
 
             <section id="page-lost" class="page hidden">
-                <div class="sub-nav">
+                <nav class="sub-nav">
                     <button class="nav-tab active" data-sub="list"><i data-lucide="list"></i> Daftar Barang</button>
                     <button class="nav-tab" data-sub="report"><i data-lucide="file-plus"></i> Lapor Kehilangan</button>
-                </div>
+                </nav>
 
                 <div id="sub-lost-list" class="sub-container">
-                    <div id="lost-list-container" class="item-grid"></div>
+                    <div class="item-grid" id="lost-list-container"></div>
                 </div>
 
                 <div id="sub-lost-report" class="sub-container hidden">
-                    <div class="glass-card">
+                    <div class="glass-card" style="max-width: 700px; margin: 0 auto;">
                         <form id="form-lost" class="styled-form">
+                            <input type="hidden" name="type" value="lost">
                             <div class="input-group">
                                 <label>Nama Barang</label>
-                                <input type="text" name="item_name" placeholder="Contoh: Kunci Motor" required>
+                                <input type="text" name="item_name" placeholder="Contoh: Dompet Kulit Cokelat" required>
                             </div>
                             <div class="input-group">
-                                <label>Lokasi Kehilangan</label>
-                                <select name="location_name" class="location-selector" id="lost-location-input">
-                                    <option value="">Pilih Lokasi...</option>
+                                <label>Lokasi Terakhir Terlihat</label>
+                                <select name="location_name" class="location-selector" required>
+                                    <option value="">-- Pilih Lokasi --</option>
                                     <option value="Gedung A">Gedung A</option>
                                     <option value="Gedung B">Gedung B</option>
                                     <option value="Gedung C">Gedung C</option>
@@ -116,8 +123,12 @@
                                 </select>
                             </div>
                             <div class="input-group">
-                                <label>Deskripsi & Ciri-ciri</label>
-                                <textarea name="description" rows="3"></textarea>
+                                <label>Nama Pemilik</label>
+                                <input type="text" name="owner_name" placeholder="Nama lengkap anda" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Deskripsi Tambahan</label>
+                                <textarea name="description" rows="3" placeholder="Ciri-ciri khusus barang..."></textarea>
                             </div>
                             <button type="button" id="btn-submit-lost" class="btn-primary">Kirim Laporan</button>
                         </form>
@@ -126,22 +137,23 @@
             </section>
 
             <section id="page-found" class="page hidden">
-                <div class="sub-nav">
-                    <button class="nav-tab active" data-sub="report"><i data-lucide="plus-circle"></i> Lapor Barang</button>
-                    <button class="nav-tab" data-sub="list"><i data-lucide="archive"></i> Daftar Penemuan</button>
-                </div>
+                <nav class="sub-nav">
+                    <button class="nav-tab active" data-sub="report"><i data-lucide="camera"></i> Lapor Penemuan</button>
+                    <button class="nav-tab" data-sub="list"><i data-lucide="clipboard-list"></i> Daftar Penemuan</button>
+                </nav>
 
                 <div id="sub-found-report" class="sub-container">
-                    <div class="glass-card">
+                    <div class="glass-card" style="max-width: 700px; margin: 0 auto;">
                         <form id="form-found" class="styled-form">
+                            <input type="hidden" name="type" value="found">
                             <div class="input-group">
-                                <label>Nama Barang</label>
-                                <input type="text" name="item_name" required>
+                                <label>Barang Yang Ditemukan</label>
+                                <input type="text" name="item_name" placeholder="Contoh: Kunci Motor Honda" required>
                             </div>
                             <div class="input-group">
-                                <label>Lokasi Ditemukan</label>
-                                <select name="location_name" class="location-selector" id="found-location-input">
-                                    <option value="">Pilih Lokasi...</option>
+                                <label>Lokasi Penemuan</label>
+                                <select name="location_name" id="found-location-input" class="location-selector" required>
+                                    <option value="">-- Pilih Lokasi --</option>
                                     <option value="Gedung A">Gedung A</option>
                                     <option value="Gedung B">Gedung B</option>
                                     <option value="Gedung C">Gedung C</option>
@@ -153,65 +165,122 @@
                                 </select>
                             </div>
                             <div class="input-group">
+                                <label>Nama Penemu</label>
+                                <input type="text" name="reporter_name" placeholder="Nama anda" required>
+                            </div>
+                            <div class="input-group">
                                 <label>Foto Barang</label>
                                 <input type="file" id="found-photo" accept="image/*">
                             </div>
-                            <button type="button" id="btn-submit-found" class="btn-primary">Posting Penemuan</button>
+                            <button type="button" id="btn-submit-found" class="btn-primary">Laporkan Penemuan</button>
                         </form>
                     </div>
                 </div>
 
                 <div id="sub-found-list" class="sub-container hidden">
-                    <div id="found-list-container" class="item-grid"></div>
+                    <div class="item-grid" id="found-list-container"></div>
                 </div>
             </section>
 
             <section id="page-admin" class="page hidden">
-                <div class="sub-nav">
-                    <button class="nav-tab active" data-sub="forms">Forms</button>
-                    <button class="nav-tab" data-sub="accounts">Accounts</button>
-                    <button class="nav-tab" data-sub="locations">Locations</button>
-                </div>
-                
+                <nav class="sub-nav">
+                    <button class="nav-tab active" data-sub="forms"><i data-lucide="database"></i> Forms Management</button>
+                    <button class="nav-tab" data-sub="accounts"><i data-lucide="users"></i> Accounts</button>
+                    <button class="nav-tab" data-sub="locations"><i data-lucide="map"></i> Locations</button>
+                </nav>
+
                 <div id="sub-admin-forms" class="sub-container">
-                    <div class="glass-card">
-                        <div class="admin-table-wrapper">
-                            <table id="table-admin-forms">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Lokasi</th>
-                                        <th>Status</th>
-                                        <th>Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
+                    <div class="glass-card admin-table-wrapper">
+                        <table id="table-admin-items">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Tipe</th>
+                                    <th>Pelapor</th>
+                                    <th>Status</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-items-body"></tbody>
+                        </table>
                     </div>
                 </div>
-                </section>
+
+                <div id="sub-admin-accounts" class="sub-container hidden">
+                    <div class="glass-card admin-table-wrapper">
+                        <table id="table-admin-users">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Created At</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="sub-admin-locations" class="sub-container hidden">
+                    <div class="glass-card">
+                        <div class="location-cloud" id="admin-locations-list"></div>
+                    </div>
+                </div>
+            </section>
 
             <section id="page-account" class="page hidden">
-                <div id="sub-account-login" class="sub-container">
-                    <div class="glass-card" style="max-width: 400px; margin: 40px auto;">
-                        <h2 id="account-status-text" style="margin-bottom: 20px; text-align: center;">Authenticate</h2>
-                        <form id="form-login" class="styled-form">
-                            <div class="input-group">
-                                <label>Username</label>
-                                <input type="text" id="login-username" required>
-                            </div>
-                            <div class="input-group">
-                                <label>Password</label>
-                                <input type="password" id="login-password" required>
-                            </div>
-                            <button type="button" id="btn-login-action" class="btn-primary">Sign In</button>
-                        </form>
+                <div class="auth-wrapper" style="max-width: 450px; margin: 40px auto;">
+                    <nav class="sub-nav" style="margin-bottom: 20px; width: 100%; justify-content: center;">
+                        <button class="nav-tab active" data-sub="login">Sign In</button>
+                        <button class="nav-tab" data-sub="register">Register</button>
+                    </nav>
+
+                    <div id="sub-account-login" class="sub-container">
+                        <div class="glass-card">
+                            <h2 id="account-status-text" style="margin-bottom: 20px; text-align: center;">Authenticate</h2>
+                            <form id="form-login" class="styled-form">
+                                <div class="input-group">
+                                    <label>Username</label>
+                                    <input type="text" id="login-username" required>
+                                </div>
+                                <div class="input-group">
+                                    <label>Password</label>
+                                    <input type="password" id="login-password" required>
+                                </div>
+                                <button type="button" id="btn-login-action" class="btn-primary">Sign In</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="sub-account-register" class="sub-container hidden">
+                        <div class="glass-card">
+                            <h2 style="margin-bottom: 20px; text-align: center;">Create Account</h2>
+                            <form id="form-register" class="styled-form">
+                                <div class="input-group">
+                                    <label>Username Baru</label>
+                                    <input type="text" id="reg-username" required>
+                                </div>
+                                <div class="input-group">
+                                    <label>Password</label>
+                                    <input type="password" id="reg-password" required>
+                                </div>
+                                <button type="button" id="btn-register-action" class="btn-primary">Daftar Akun</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </section>
 
         </main>
+    </div>
+
+    <div id="modal-detail" class="modal-overlay hidden">
+        <div class="modal-content glass-card">
+            <button class="btn-close-modal"><i data-lucide="x"></i></button>
+            <div id="detail-content-body">
+                </div>
+        </div>
     </div>
 
     <script src="assets/js/utils.js"></script>
