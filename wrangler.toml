@@ -1,0 +1,9 @@
+
+name = "spetech-lnf"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB" # Nama variabel yang dipanggil di API (functions)
+database_name = "spetech_db"
+database_id = "MASUKKAN_ID_DATABASE_D1_KAMU_DISINI"

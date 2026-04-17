@@ -1,0 +1,24 @@
+
+{
+  "name": "spetech-lnf",
+  "version": "1.0.0",
+  "description": "Sistem Lost and Found SMP Techno berbasis Website dengan Integrasi QR Lokasi",
+  "main": "index.html",
+  "scripts": {
+    "dev": "wrangler pages dev . --compatibility-date=2024-01-01 --d1 DB",
+    "deploy": "wrangler pages deploy .",
+    "db:init": "wrangler d1 execute DB --file=./functions/schema.sql",
+    "db:seed": "wrangler d1 execute DB --file=./functions/seed.sql"
+  },
+  "keywords": [
+    "lost-and-found",
+    "cloudflare-pages",
+    "qr-code",
+    "kti"
+  ],
+  "author": "Siswa SMP Techno",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
