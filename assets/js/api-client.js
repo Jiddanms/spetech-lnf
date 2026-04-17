@@ -44,69 +44,107 @@ const apiClient = {
             return {
                 status: response.status,
                 ok: response.ok,
-                data
+                data: data
             };
         } catch (error) {
-            console.error("API Fetch Error:", error);
+            console.error(`API Error on ${endpoint}:`, error);
             return {
                 status: 500,
                 ok: false,
-                data: { error: "Gagal terhubung ke server." }
+                data: { error: "Terjadi kesalahan koneksi ke server." }
             };
         }
     },
 
-    // --- AUTHENTICATION API ---
+    // --- AUTH API ---
     auth: {
-        register: (userData) => apiClient.fetch('/auth/register', { method: 'POST', body: JSON.stringify(userData) }),
-        login: (credentials) => apiClient.fetch('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
-        logout: () => apiClient.fetch('/auth/logout', { method: 'POST' }),
-        checkSession: () => apiClient.fetch('/auth/me', { method: 'GET' })
+        login: (credentials) => apiClient.fetch('/auth/login', { 
+            method: 'POST', 
+            body: JSON.stringify(credentials) 
+        }),
+        register: (userData) => apiClient.fetch('/auth/register', { 
+            method: 'POST', 
+            body: JSON.stringify(userData) 
+        }),
+        checkSession: () => apiClient.fetch('/auth/me', { method: 'GET' }),
+        // Update Besar: Get Users untuk Admin
+        getUsers: () => apiClient.fetch('/admin/users', { method: 'GET' }),
+        // Update Besar: Delete User untuk Admin
+        deleteUser: (id) => apiClient.fetch('/admin/users', { 
+            method: 'DELETE', 
+            body: JSON.stringify({ id }) 
+        })
     },
 
-    // --- ITEMS (LOST & FOUND) API ---
+    // --- ITEMS API ---
     items: {
         getLost: () => apiClient.fetch('/items/lost', { method: 'GET' }),
         getFound: () => apiClient.fetch('/items/found', { method: 'GET' }),
-        getDetail: (id) => apiClient.fetch(`/items/${id}`, { method: 'GET' }),
-        reportLost: (formData) => apiClient.fetch('/items/lost', { method: 'POST', body: JSON.stringify(formData) }),
-        reportFound: (formData) => apiClient.fetch('/items/found', { method: 'POST', body: JSON.stringify(formData) }),
-        uploadImage: (file) => {
-            // Khusus upload menggunakan FormData, bukan JSON
-            const formData = new FormData();
-            formData.append('file', file);
-            return apiClient.fetch('/items/upload', {
-                method: 'POST',
-                body: formData,
-                headers: { 'Content-Type': undefined } // Biarkan browser yang set boundary
-            });
-        }
-    },
-
-    // --- ADMIN API ---
-    admin: {
-        // Management Form (Items)
-        getForms: (type) => apiClient.fetch(`/admin/forms${type ? `?type=${type}` : ''}`, { method: 'GET' }),
-        updateStatus: (id, status) => apiClient.fetch('/admin/forms', { 
-            method: 'PATCH', 
-            body: JSON.stringify({ id, status }) 
+        getDetail: (id) => apiClient.fetch(`/items/detail?id=${id}`, { method: 'GET' }),
+        
+        // Lapor Kehilangan (Lost)
+        reportLost: (itemData) => apiClient.fetch('/items/lost', { 
+            method: 'POST', 
+            body: JSON.stringify(itemData) 
         }),
-        deleteForm: (id) => apiClient.fetch('/admin/forms', { 
+        
+        // Lapor Penemuan (Found)
+        reportFound: (itemData) => apiClient.fetch('/items/found', { 
+            method: 'POST', 
+            body: JSON.stringify(itemData) 
+        }),
+
+        // Update Besar: Update Status untuk Admin
+        updateStatus: (id, statusData) => apiClient.fetch('/admin/forms', { 
+            method: 'PATCH', 
+            body: JSON.stringify({ id, ...statusData }) 
+        }),
+
+        // Update Besar: Delete Item untuk Admin
+        delete: (id) => apiClient.fetch('/admin/forms', { 
             method: 'DELETE', 
             body: JSON.stringify({ id }) 
         }),
 
-        // Management User
-        getUsers: () => apiClient.fetch('/admin/users', { method: 'GET' }),
-        createUser: (userData) => apiClient.fetch('/admin/users', { method: 'POST', body: JSON.stringify(userData) }),
-        deleteUser: (id) => apiClient.fetch('/admin/users', { method: 'DELETE', body: JSON.stringify({ id }) }),
+        /**
+         * Upload Gambar ke Cloudflare (R2 atau via Worker)
+         * Menggunakan FormData karena mengirimkan file binary.
+         */
+        uploadImage: async (file) => {
+            const formData = new FormData();
+            formData.append('file', file);
 
+            // Fetch khusus karena tidak menggunakan Content-Type application/json
+            const token = localStorage.getItem('sp_lnf_token');
+            const res = await fetch(`${apiClient.baseUrl}/items/upload`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                    // Browser akan otomatis set Content-Type: multipart/form-data beserta boundary
+                }
+            });
+            const data = await res.json();
+            return { ok: res.ok, data };
+        }
+    },
+
+    // --- ADMIN API (Manajemen Tambahan) ---
+    admin: {
         // Management Location
         getLocations: () => apiClient.fetch('/admin/locations', { method: 'GET' }),
-        addLocation: (locationData) => apiClient.fetch('/admin/locations', { method: 'POST', body: JSON.stringify(locationData) }),
-        deleteLocation: (id) => apiClient.fetch('/admin/locations', { method: 'DELETE', body: JSON.stringify({ id }) })
+        // Update Besar: Add Location
+        addLocation: (locationData) => apiClient.fetch('/admin/locations', { 
+            method: 'POST', 
+            body: JSON.stringify(locationData) 
+        }),
+        // Update Besar: Delete Location
+        deleteLocation: (id) => apiClient.fetch('/admin/locations', { 
+            method: 'DELETE', 
+            body: JSON.stringify({ id }) 
+        })
     }
 };
 
-// Export ke window agar bisa diakses main.js
+// Global export
 window.apiClient = apiClient;
