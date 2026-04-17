@@ -6,109 +6,207 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spetech Lost and Found | SMP Techno</title>
     
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
+    <div id="bg-overlay" class="bg-overlay" style="background-image: url('assets/img/bg-home.jpg');"></div>
+    <div class="scanline"></div>
 
-    <div id="bg-overlay" class="bg-overlay"></div>
-
-    <div class="app-container">
+    <div class="app-shell">
         <aside class="sidebar">
-            <div class="brand">
-                <div class="logo-wrapper">
-                    <img src="assets/img/logo.png" alt="Logo" class="logo-img">
+            <div class="brand" style="flex-direction: row; gap: 12px; padding: 30px 20px; align-items: center; text-align: left;">
+                <div class="brand-logo">
+                    <img src="assets/img/logo.png" alt="Logo" style="width: 40px; margin-bottom: 0;">
                 </div>
-                <div class="brand-text">
-                    <span class="brand-name">SPETECH</span>
-                    <span class="brand-sub">Lost & Found</span>
+                <div class="brand-info">
+                    <span class="title" style="font-size: 1.1rem;">SPETECH</span>
+                    <span class="subtitle" style="font-size: 0.65rem;">Lost & Found</span>
                 </div>
             </div>
-            <nav class="sidebar-nav">
-                <button class="side-btn active" id="btn-page-home" data-page="home">
-                    <i data-lucide="layout-dashboard"></i> <span>Home</span>
+
+            <nav class="side-nav">
+                <button class="side-item active" id="btn-page-home" data-page="home">
+                    <i data-lucide="layout-grid"></i> <span>Dashboard</span>
                 </button>
-                <button class="side-btn" id="btn-page-lost" data-page="lost">
-                    <i data-lucide="search"></i> <span>Lost</span>
+                <button class="side-item" id="btn-page-lost" data-page="lost">
+                    <i data-lucide="search"></i> <span>Lost Items</span>
                 </button>
-                <button class="side-btn" id="btn-page-found" data-page="found">
-                    <i data-lucide="package"></i> <span>Found</span>
+                <button class="side-item" id="btn-page-found" data-page="found">
+                    <i data-lucide="package"></i> <span>Found Items</span>
                 </button>
-                <button class="side-btn hidden" id="btn-page-admin" data-page="admin">
-                    <i data-lucide="shield-check"></i> <span>Admin</span>
+                <button class="side-item hidden" id="btn-page-admin" data-page="admin">
+                    <i data-lucide="shield-check"></i> <span>Admin Panel</span>
                 </button>
-                <button class="side-btn" id="btn-page-account" data-page="account">
+                <div class="nav-spacer"></div>
+                <button class="side-item" id="btn-page-account" data-page="account">
                     <i data-lucide="user-circle"></i> <span>Account</span>
                 </button>
             </nav>
         </aside>
 
-        <main class="main-content">
+        <main class="content-area">
             
             <section id="page-home" class="page">
-                <div class="home-hero">
-                    <h1>Selamat Datang di Portal Spetech</h1>
-                    <p>Sistem pelaporan kehilangan dan penemuan barang SMP Techno terintegrasi.</p>
+                <div class="hero-banner">
+                    <h1 class="glitch-text">Spetech LNF</h1>
+                    <p class="text-dim">Sistem pelaporan kehilangan dan penemuan barang SMP Techno.</p>
                 </div>
-
-                <div class="guide-section card">
-                    <div class="section-title">
-                        <i data-lucide="info"></i>
-                        <h3>Panduan Singkat</h3>
+                
+                <div class="guide-grid">
+                    <div class="guide-item">
+                        <span class="badge">Langkah 1</span>
+                        <p>Cek daftar barang temuan di menu Found.</p>
                     </div>
-                    <div class="guide-steps">
-                        <div class="step">
-                            <span class="step-num">01</span>
-                            <p><strong>Cari:</strong> Periksa daftar barang penemuan di menu Found.</p>
-                        </div>
-                        <div class="step">
-                            <span class="step-num">02</span>
-                            <p><strong>Lapor:</strong> Jika kehilangan, isi form di menu Lost secara detail.</p>
-                        </div>
-                        <div class="step">
-                            <span class="step-num">03</span>
-                            <p><strong>Klaim:</strong> Hubungi admin di ruang kesiswaan untuk verifikasi.</p>
-                        </div>
+                    <div class="guide-item">
+                        <span class="badge">Langkah 2</span>
+                        <p>Lapor jika Anda kehilangan atau menemukan barang.</p>
+                    </div>
+                    <div class="guide-item">
+                        <span class="badge">Langkah 3</span>
+                        <p>Temui admin untuk verifikasi pengambilan barang.</p>
                     </div>
                 </div>
 
-                <div class="home-grid">
-                    <div class="card">
-                        <div class="section-title"><h3>Kehilangan Terbaru</h3></div>
-                        <div id="home-recent-lost" class="compact-list"></div>
+                <div style="margin-top: 40px;">
+                    <h3 class="card-header"><i data-lucide="map"></i> Lokasi QR Terdaftar</h3>
+                    <div class="location-cloud" style="margin-top: 15px;">
+                        <span class="tag">Gedung A</span>
+                        <span class="tag">Gedung B</span>
+                        <span class="tag">Gedung C</span>
+                        <span class="tag">Lapangan Upacara</span>
+                        <span class="tag">Lapangan Basket</span>
+                        <span class="tag">Lapangan Tenis</span>
+                        <span class="tag">Koperasi</span>
+                        <span class="tag">Kantin</span>
                     </div>
-                    <div class="card">
-                        <div class="section-title"><h3>Temuan Terbaru</h3></div>
-                        <div id="home-recent-found" class="compact-list"></div>
-                    </div>
-                    <div class="card location-card">
-                        <div class="section-title"><h3>Lokasi Tersedia</h3></div>
-                        <div class="location-badges" id="available-locations">
-                            <span class="loc-tag">Gedung A</span><span class="loc-tag">Gedung B</span>
-                            <span class="loc-tag">Gedung C</span><span class="loc-tag">Kantin</span>
-                            <span class="loc-tag">Koperasi</span><span class="loc-tag">Lapangan</span>
-                        </div>
+                </div>
+            </section>
+
+            <section id="page-lost" class="page hidden">
+                <div class="sub-nav">
+                    <button class="nav-tab active" data-sub="list"><i data-lucide="list"></i> Daftar Barang</button>
+                    <button class="nav-tab" data-sub="report"><i data-lucide="file-plus"></i> Lapor Kehilangan</button>
+                </div>
+
+                <div id="sub-lost-list" class="sub-container">
+                    <div id="lost-list-container" class="item-grid"></div>
+                </div>
+
+                <div id="sub-lost-report" class="sub-container hidden">
+                    <div class="glass-card">
+                        <form id="form-lost" class="styled-form">
+                            <div class="input-group">
+                                <label>Nama Barang</label>
+                                <input type="text" name="item_name" placeholder="Contoh: Kunci Motor" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Lokasi Kehilangan</label>
+                                <select name="location_name" class="location-selector" id="lost-location-input">
+                                    <option value="">Pilih Lokasi...</option>
+                                    <option value="Gedung A">Gedung A</option>
+                                    <option value="Gedung B">Gedung B</option>
+                                    <option value="Gedung C">Gedung C</option>
+                                    <option value="Lapangan Upacara">Lapangan Upacara</option>
+                                    <option value="Lapangan Basket">Lapangan Basket</option>
+                                    <option value="Lapangan Tenis">Lapangan Tenis</option>
+                                    <option value="Koperasi">Koperasi</option>
+                                    <option value="Kantin">Kantin</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Deskripsi & Ciri-ciri</label>
+                                <textarea name="description" rows="3"></textarea>
+                            </div>
+                            <button type="button" id="btn-submit-lost" class="btn-primary">Kirim Laporan</button>
+                        </form>
                     </div>
                 </div>
             </section>
 
             <section id="page-found" class="page hidden">
-                <nav class="sub-navbar">
-                    <button class="nav-btn active" data-sub="report"><i data-lucide="edit-3"></i> Lapor</button>
-                    <button class="nav-btn" data-sub="list"><i data-lucide="list"></i> Daftar</button>
-                </nav>
-                <div class="subpage" id="sub-found-report">
-                    <div class="form-container card">
-                        <form id="form-found">
-                            <label>Lokasi Kejadian</label>
-                            <select name="location_name" id="location-select-trigger" required>
-                                <option value="default">Pilih Lokasi...</option>
-                                <option value="gedung-a">Gedung A</option>
-                                <option value="gedung-b">Gedung B</option>
-                                <option value="kantin">Kantin</option>
-                            </select>
-                            </form>
+                <div class="sub-nav">
+                    <button class="nav-tab active" data-sub="report"><i data-lucide="plus-circle"></i> Lapor Barang</button>
+                    <button class="nav-tab" data-sub="list"><i data-lucide="archive"></i> Daftar Penemuan</button>
+                </div>
+
+                <div id="sub-found-report" class="sub-container">
+                    <div class="glass-card">
+                        <form id="form-found" class="styled-form">
+                            <div class="input-group">
+                                <label>Nama Barang</label>
+                                <input type="text" name="item_name" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Lokasi Ditemukan</label>
+                                <select name="location_name" class="location-selector" id="found-location-input">
+                                    <option value="">Pilih Lokasi...</option>
+                                    <option value="Gedung A">Gedung A</option>
+                                    <option value="Gedung B">Gedung B</option>
+                                    <option value="Gedung C">Gedung C</option>
+                                    <option value="Lapangan Upacara">Lapangan Upacara</option>
+                                    <option value="Lapangan Basket">Lapangan Basket</option>
+                                    <option value="Lapangan Tenis">Lapangan Tenis</option>
+                                    <option value="Koperasi">Koperasi</option>
+                                    <option value="Kantin">Kantin</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Foto Barang</label>
+                                <input type="file" id="found-photo" accept="image/*">
+                            </div>
+                            <button type="button" id="btn-submit-found" class="btn-primary">Posting Penemuan</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="sub-found-list" class="sub-container hidden">
+                    <div id="found-list-container" class="item-grid"></div>
+                </div>
+            </section>
+
+            <section id="page-admin" class="page hidden">
+                <div class="sub-nav">
+                    <button class="nav-tab active" data-sub="forms">Forms</button>
+                    <button class="nav-tab" data-sub="accounts">Accounts</button>
+                    <button class="nav-tab" data-sub="locations">Locations</button>
+                </div>
+                
+                <div id="sub-admin-forms" class="sub-container">
+                    <div class="glass-card">
+                        <div class="admin-table-wrapper">
+                            <table id="table-admin-forms">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Lokasi</th>
+                                        <th>Status</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                </section>
+
+            <section id="page-account" class="page hidden">
+                <div id="sub-account-login" class="sub-container">
+                    <div class="glass-card" style="max-width: 400px; margin: 40px auto;">
+                        <h2 id="account-status-text" style="margin-bottom: 20px; text-align: center;">Authenticate</h2>
+                        <form id="form-login" class="styled-form">
+                            <div class="input-group">
+                                <label>Username</label>
+                                <input type="text" id="login-username" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Password</label>
+                                <input type="password" id="login-password" required>
+                            </div>
+                            <button type="button" id="btn-login-action" class="btn-primary">Sign In</button>
+                        </form>
                     </div>
                 </div>
             </section>
