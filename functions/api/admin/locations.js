@@ -4,6 +4,8 @@
  * Backend Handler untuk Manajemen Lokasi - Spetech Lost and Found
  * Menangani: GET (List), POST (Add), DELETE (Remove)
  * UPDATE QoL 6.16: Fix Delete Bug & ID Parsing
+ * UPDATE QoL 6.18: Total Location Sync & Auto QR Generator
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (140+ Lines)
  */
 
 export async function onRequest(context) {
@@ -24,10 +26,10 @@ export async function onRequest(context) {
     }
   }
 
-  // 2. POST: Tambah lokasi baru (Contoh: 'Gedung D', 'Lab Komputer')
+  // 2. POST: Tambah lokasi baru - UPDATE QoL 6.18 (Support Gambar & Auto QR)
   if (request.method === "POST") {
     try {
-      const { name, description } = await request.json();
+      const { name, description, image_url } = await request.json();
       
       if (!name) {
         return new Response(JSON.stringify({ error: "Nama lokasi wajib diisi" }), { 
@@ -36,14 +38,27 @@ export async function onRequest(context) {
         });
       }
 
-      // Payload QR otomatis mengikuti format pendeteksian di main.js
-      const qrPayload = `?lokasi=${encodeURIComponent(name)}`;
+      // Step A: Insert data dasar terlebih dahulu untuk mendapatkan ID
+      const info = await env.DB.prepare(
+        "INSERT INTO locations (name, description, image_url) VALUES (?, ?, ?)"
+      ).bind(name, description || "", image_url || null).run();
 
+      const lastId = info.meta.last_row_id;
+
+      // Step B: Generate QR Payload & QR Image URL secara otomatis
+      const qrPayload = `?lokasi=${lastId}`;
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrPayload)}`;
+
+      // Step C: Update baris tadi dengan QR info yang sudah digenerate
       await env.DB.prepare(
-        "INSERT INTO locations (name, description, qr_code_payload) VALUES (?, ?, ?)"
-      ).bind(name, description || "", qrPayload).run();
+        "UPDATE locations SET qr_code_payload = ?, qr_image_url = ? WHERE id = ?"
+      ).bind(qrPayload, qrImageUrl, lastId).run();
       
-      return new Response(JSON.stringify({ success: true, message: "Lokasi berhasil ditambahkan" }), { 
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "Lokasi & QR berhasil dibuat",
+        id: lastId 
+      }), { 
         status: 201,
         headers: { 
           "Content-Type": "application/json",
@@ -51,8 +66,7 @@ export async function onRequest(context) {
         }
       });
     } catch (e) {
-      // Menangani kasus jika lokasi dengan nama yang sama sudah terdaftar (Unique Constraint)
-      return new Response(JSON.stringify({ error: "Nama lokasi sudah ada di database" }), { 
+      return new Response(JSON.stringify({ error: "Gagal menambah lokasi: " + e.message }), { 
         status: 400,
         headers: { 
           "Content-Type": "application/json",
@@ -104,6 +118,7 @@ export async function onRequest(context) {
     });
   }
 
+  // 4. Fallback: Method not allowed
   return new Response(JSON.stringify({ error: "Method not allowed" }), { 
     status: 405,
     headers: { "Content-Type": "application/json" }

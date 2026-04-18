@@ -4,7 +4,8 @@
  * Helper functions untuk Spetech Lost and Found.
  * Fokus: QR Detection, Date Formatting, UI Feedback, dan DOM Helpers.
  * UPDATE QoL 6.17: Image Compression Engine (Anti-Connection Error)
- * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED
+ * UPDATE QoL 6.18: Dynamic QR View & Location Visual Helpers
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (190+ Lines)
  */
 
 const utils = {
@@ -91,7 +92,7 @@ const utils = {
             img.src = event.target.result;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                // Max Width 800px untuk menghemat bandwidth tanpa pecah (Eye-Catching)
+                // Max Width 800px untuk menghemat bandwidth tanpa pecah
                 const MAX_WIDTH = 800;
                 let width = img.width;
                 let height = img.height;
@@ -106,7 +107,7 @@ const utils = {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Output Base64 dengan kualitas 70% (Efektif & Powerful)
+                // Output Base64 dengan kualitas tertentu
                 const dataUrl = canvas.toDataURL('image/jpeg', quality);
                 callback(dataUrl);
             };
@@ -135,10 +136,28 @@ const utils = {
             modal.classList.add('hidden');
             document.body.style.overflow = 'auto';
         }
+    },
+
+    /**
+     * NEW QoL 6.18: QR Code Preview Zoom
+     * Memungkinkan gambar QR di card lokasi diklik untuk diperbesar.
+     */
+    previewQR: (qrUrl, locationName) => {
+        const html = `
+            <div style="text-align:center; padding:20px;">
+                <h2 style="margin-bottom:20px; color:var(--accent);">${locationName}</h2>
+                <div style="background:white; padding:20px; border-radius:15px; display:inline-block; margin-bottom:20px;">
+                    <img src="${qrUrl}" style="width:250px; height:250px; display:block;">
+                </div>
+                <p style="color:var(--text-dim); font-size:0.9rem;">Scan QR ini untuk otomatis masuk ke form pelaporan dengan lokasi yang sudah terpilih.</p>
+                <button class="btn-primary" style="margin-top:20px;" onclick="window.print()">Cetak QR</button>
+            </div>
+        `;
+        utils.showModal(html);
     }
 };
 
-// CSS untuk Toast (Tetap Dipertahankan)
+// CSS untuk Toast (TETAP DIPERTAHANKAN DAN DIPERKUAT)
 const style = document.createElement('style');
 style.innerHTML = `
     .toast-notification {
@@ -176,6 +195,21 @@ style.innerHTML = `
     .badge-info { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
     .badge-success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
     .badge-secondary { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+
+    /* QoL 6.18: Additional Utility Styles */
+    .loader {
+        border: 3px solid rgba(255,255,255,0.1);
+        border-radius: 50%;
+        border-top: 3px solid var(--accent);
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
 `;
 document.head.appendChild(style);
 

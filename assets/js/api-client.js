@@ -3,8 +3,8 @@
  * assets/js/api-client.js
  * Central API Client untuk Spetech Lost and Found.
  * Menangani fetch ke Cloudflare Workers dengan manajemen token otomatis.
- * UPDATE QoL 6.17: Payload Stability & Anti-Connection Error Fix.
- * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (160+ Lines)
+ * UPDATE QoL 6.18: Total Location Sync & Admin Power.
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (180+ Lines)
  */
 
 const apiClient = {
@@ -141,22 +141,27 @@ const apiClient = {
         }
     },
 
-    // --- ADMIN API (Locations & Analytics) ---
+    // --- ADMIN API & LOCATIONS (Update QoL 6.18) ---
     admin: {
-        // Management Location
+        // GET: Mengambil daftar lokasi (Admin/Public sync)
         getLocations: () => apiClient.fetch('/admin/locations', { method: 'GET' }),
         
-        // Add New School Area
+        // POST: Menambah lokasi baru - QoL 6.18: Mendukung pengiriman image_url (Base64)
         addLocation: (locationData) => apiClient.fetch('/admin/locations', { 
             method: 'POST', 
             body: JSON.stringify(locationData) 
         }),
         
-        // Fix QoL 6.16: Delete Area Fix
+        // DELETE: Hapus lokasi berdasarkan ID
         deleteLocation: (id) => apiClient.fetch('/admin/locations', { 
             method: 'DELETE', 
             body: JSON.stringify({ id: parseInt(id) }) 
         })
+    },
+
+    // QoL 6.18: Dedicated Endpoint untuk User (Halaman Lokasi Publik)
+    locations: {
+        getList: () => apiClient.fetch('/locations/list', { method: 'GET' })
     }
 };
 

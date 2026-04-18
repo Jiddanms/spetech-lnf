@@ -10,11 +10,14 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Table: locations (Untuk sistem QR Lokasi)
-CREATE TABLE IF NOT EXISTS locations (
+CREATE TABLE locations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE, -- Contoh: 'Kantin', 'Gedung A'
+    name TEXT NOT NULL UNIQUE,
     description TEXT,
-    qr_code_payload TEXT -- Link unik untuk generator QR
+    image_url TEXT,
+    qr_image_url TEXT,
+    qr_code_payload TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Table: items (Jantung dari sistem Lost & Found)
