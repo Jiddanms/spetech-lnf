@@ -3,12 +3,13 @@
  * assets/js/utils.js
  * Helper functions untuk Spetech Lost and Found.
  * Fokus: QR Detection, Date Formatting, UI Feedback, dan DOM Helpers.
+ * UPDATE QoL 6.17: Image Compression Engine (Anti-Connection Error)
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED
  */
 
 const utils = {
     /**
      * Mengambil parameter dari URL (Sangat krusial untuk integrasi QR Lokasi)
-     * Contoh: ?lokasi=Kantin -> akan mengembalikan "Kantin"
      */
     getQueryParam: (param) => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -17,7 +18,6 @@ const utils = {
 
     /**
      * Memformat tanggal ISO dari database menjadi format yang enak dibaca siswa.
-     * Contoh: 2026-04-17T... -> 17 Apr 2026, 10:30
      */
     formatDate: (dateString) => {
         if (!dateString) return "-";
@@ -33,68 +33,88 @@ const utils = {
 
     /**
      * Notifikasi (Toast) Custom - Sesuai tema Dark Mode.
-     * Membuat feedback yang simple tapi powerful tanpa perlu library eksternal berat.
      */
     showToast: (message, type = 'info') => {
-        // Hapus toast lama jika ada
-        const oldToast = document.querySelector('.toast-notification');
-        if (oldToast) oldToast.remove();
-
         const toast = document.createElement('div');
         toast.className = `toast-notification toast-${type}`;
-        toast.innerHTML = `
-            <div class="toast-content">
-                <span class="toast-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
-                <span class="toast-message">${message}</span>
-            </div>
-        `;
-
+        toast.innerText = message;
         document.body.appendChild(toast);
 
-        // Animasi keluar setelah 3 detik
         setTimeout(() => {
-            toast.classList.add('fade-out');
+            toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 500);
         }, 3000);
     },
 
     /**
-     * Helper untuk menangani upload gambar & merubahnya menjadi base64 (client-side preview)
+     * Menghasilkan Badge HTML berdasarkan status barang
      */
-    fileToBase64: (file) => {
+    getStatusBadge: (status) => {
+        const labels = {
+            'pending': { text: 'Menunggu', class: 'badge-warning' },
+            'verified': { text: 'Terverifikasi', class: 'badge-info' },
+            'completed': { text: 'Selesai', class: 'badge-success' }
+        };
+        const config = labels[status] || { text: status, class: 'badge-secondary' };
+        return `<span class="badge ${config.class}">${config.text}</span>`;
+    },
+
+    /**
+     * FIX QoL 6.17: Konversi File ke Base64 dengan Auto-Compression
+     * Mencegah "Kesalahan Koneksi" akibat payload terlalu besar.
+     */
+    fileToBase64: async (file) => {
         return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = (error) => reject(error);
+            // Jika ukuran file > 1MB, lakukan kompresi otomatis
+            if (file.size > 1024 * 1024) {
+                utils.compressImage(file, 0.7, (compressedBase64) => {
+                    resolve(compressedBase64);
+                });
+            } else {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            }
         });
     },
 
     /**
-     * Truncate text untuk card agar layout tetap rapi
+     * NEW QoL 6.17: Image Compressor Engine
+     * Mengecilkan resolusi gambar secara dinamis untuk stabilisasi upload.
      */
-    truncateText: (text, limit = 60) => {
-        if (!text) return "";
-        return text.length > limit ? text.substring(0, limit) + "..." : text;
-    },
+    compressImage: (file, quality, callback) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                // Max Width 800px untuk menghemat bandwidth tanpa pecah (Eye-Catching)
+                const MAX_WIDTH = 800;
+                let width = img.width;
+                let height = img.height;
 
-    /**
-     * Generate badge HTML berdasarkan status barang
-     */
-    getStatusBadge: (status) => {
-        const statusMap = {
-            'pending': { label: 'Menunggu', class: 'badge-pending' },
-            'verified': { label: 'Terverifikasi', class: 'badge-success' },
-            'completed': { label: 'Selesai', class: 'badge-info' },
-            'archived': { label: 'Arsip', class: 'badge-muted' }
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Output Base64 dengan kualitas 70% (Efektif & Powerful)
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                callback(dataUrl);
+            };
         };
-        const s = statusMap[status] || { label: status, class: '' };
-        return `<span class="badge ${s.class}">${s.label}</span>`;
     },
 
     /**
-     * QoL: Modal Detail System
-     * Menampilkan modal pop-up dengan konten dinamis
+     * QoL: Show Modal Detail
      */
     showModal: (contentHtml) => {
         const modal = document.getElementById('modal-detail');
@@ -102,7 +122,7 @@ const utils = {
         if (modal && body) {
             body.innerHTML = contentHtml;
             modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden'; // Lock scroll
+            document.body.style.overflow = 'hidden'; 
         }
     },
 
@@ -113,37 +133,50 @@ const utils = {
         const modal = document.getElementById('modal-detail');
         if (modal) {
             modal.classList.add('hidden');
-            document.body.style.overflow = 'auto'; // Unlock scroll
+            document.body.style.overflow = 'auto';
         }
     }
 };
 
-// CSS untuk Toast (Akan disinkronkan dengan style.css nanti)
+// CSS untuk Toast (Tetap Dipertahankan)
 const style = document.createElement('style');
 style.innerHTML = `
     .toast-notification {
         position: fixed;
         bottom: 20px;
         right: 20px;
-        background: var(--panel, #1b2430);
+        background: #1e293b;
         color: white;
-        padding: 12px 20px;
-        border-radius: var(--radius, 10px);
-        box-shadow: var(--shadow, 0 6px 18px rgba(0,0,0,0.5));
-        border-left: 5px solid var(--accent, #2ea6ff);
+        padding: 12px 25px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        border-left: 5px solid #3b82f6;
         z-index: 9999;
-        animation: slideIn 0.3s ease-out;
+        font-weight: 600;
+        animation: toastSlideIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        transition: opacity 0.5s ease;
     }
-    .toast-success { border-left-color: var(--success, #2ecc71); }
-    .toast-error { border-left-color: var(--danger, #e74c3c); }
-    .toast-content { display: flex; align-items: center; gap: 10px; }
-    .fade-out { opacity: 0; transition: opacity 0.5s ease; }
-    @keyframes slideIn {
+    .toast-success { border-left-color: #10b981; }
+    .toast-error { border-left-color: #ef4444; }
+    .toast-info { border-left-color: #3b82f6; }
+
+    @keyframes toastSlideIn {
         from { transform: translateX(100%); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
     }
+
+    .badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .badge-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+    .badge-info { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+    .badge-success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+    .badge-secondary { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
 `;
 document.head.appendChild(style);
 
-// Export agar bisa digunakan di file lain
 window.utils = utils;

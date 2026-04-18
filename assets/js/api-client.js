@@ -3,8 +3,8 @@
  * assets/js/api-client.js
  * Central API Client untuk Spetech Lost and Found.
  * Menangani fetch ke Cloudflare Workers dengan manajemen token otomatis.
- * UPDATE QoL 6.16: Fix Connection Bugs, Detail Sync, & Admin Delete Power.
- * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED.
+ * UPDATE QoL 6.17: Payload Stability & Anti-Connection Error Fix.
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (160+ Lines)
  */
 
 const apiClient = {
@@ -36,7 +36,15 @@ const apiClient = {
 
         try {
             const response = await fetch(`${apiClient.baseUrl}${endpoint}`, config);
-            const data = await response.json();
+            
+            // Cek apakah respon adalah JSON
+            const contentType = response.headers.get("content-type");
+            let data;
+            if (contentType && contentType.includes("application/json")) {
+                data = await response.json();
+            } else {
+                data = { message: await response.text() };
+            }
 
             // Jika error 401 atau 403 (Unauthorized), arahkan ke login jika perlu
             if (response.status === 401 || response.status === 403) {
@@ -73,7 +81,7 @@ const apiClient = {
         // QoL 6.15/6.16: Get Users untuk Admin Management
         getUsers: () => apiClient.fetch('/admin/users', { method: 'GET' }),
         
-        // QoL 6.16: Delete User Fix
+        // QoL 6.16: Delete User
         deleteUser: (id) => apiClient.fetch('/admin/users', { 
             method: 'DELETE', 
             body: JSON.stringify({ id: parseInt(id) }) 
@@ -88,13 +96,13 @@ const apiClient = {
         // Fix QoL 6.16: Detail Sync agar tidak gagal memuat
         getDetail: (id) => apiClient.fetch(`/items/detail?id=${id}`, { method: 'GET' }),
         
-        // Lapor Kehilangan (Lost) - Fix Connection Error
+        // Lapor Kehilangan (Lost) - QoL 6.17 Fix: Murni mengirim data terkompresi
         reportLost: (itemData) => apiClient.fetch('/items/lost', { 
             method: 'POST', 
             body: JSON.stringify(itemData) 
         }),
         
-        // Lapor Penemuan (Found)
+        // Lapor Penemuan (Found) - QoL 6.17 Fix: Murni mengirim data terkompresi
         reportFound: (itemData) => apiClient.fetch('/items/found', { 
             method: 'POST', 
             body: JSON.stringify(itemData) 
@@ -113,7 +121,7 @@ const apiClient = {
         }),
 
         /**
-         * Upload Gambar ke Cloudflare (R2 atau via Worker)
+         * Upload Gambar ke Cloudflare (Legacy Mode)
          * Menggunakan FormData karena mengirimkan file binary.
          */
         uploadImage: async (file) => {

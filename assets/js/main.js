@@ -3,8 +3,8 @@
  * assets/js/main.js
  * Konduktor Utama Frontend - Spetech Lost and Found
  * Integrasi Penuh: Backend Cloudflare Workers & D1 Database
- * UPDATE QoL 6.16: Bug Fix Modal, Form Lost Fix, & Admin Delete Active
- * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED
+ * UPDATE QoL 6.17: Payload Optimization & Anti-Connection Error Fix
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (470+ Lines)
  */
 
 // 1. Konfigurasi State Aplikasi
@@ -48,7 +48,7 @@ function initNavigation() {
     // Modal Close Button
     $('.btn-close-modal')?.addEventListener('click', () => window.utils.hideModal());
 
-    // LOGIKA QR OTOMATIS
+    // LOGIKA QR OTOMATIS (Update QoL 6.17)
     const qrLocation = window.utils.getQueryParam('lokasi');
     if (qrLocation) {
         window.utils.showToast(`Lokasi QR: ${qrLocation}`, 'info');
@@ -65,7 +65,7 @@ function initNavigation() {
 }
 
 /**
- * 3. CORE SWITCHING LOGIC
+ * 3. CORE SWITCHING LOGIC (Masterpiece Navigation)
  */
 function switchPage(pageId) {
     state.currentPage = pageId;
@@ -104,7 +104,7 @@ function switchSubPage(parentPage, subId) {
 }
 
 /**
- * 4. DATA LOADING & RENDERING
+ * 4. DATA LOADING & RENDERING (Card UI Matang)
  */
 async function loadPageData(pageId) {
     try {
@@ -225,7 +225,7 @@ async function handleLogout() {
     setTimeout(() => location.reload(), 800);
 }
 
-// FIX QoL 6.16: Perbaikan Logika handleReport untuk Form Kehilangan agar tidak Error Koneksi
+// FIX QoL 6.17: Payload Optimization dengan Kompresi Gambar
 async function handleReport(type) {
     const form = $(`#form-${type}`);
     if (!form) return;
@@ -237,17 +237,27 @@ async function handleReport(type) {
         return window.utils.showToast("Field utama wajib diisi!", "error");
     }
 
+    const btn = $(`#btn-submit-${type}`);
+    btn.disabled = true;
+    btn.innerText = "Mengompresi...";
+
     const fileInput = form.querySelector('input[type="file"]');
     if (fileInput?.files[0]) {
-        window.utils.showToast("Mengunggah gambar...", "info");
+        window.utils.showToast("Memproses gambar...", "info");
         try {
+            // Menggunakan utils.fileToBase64 yang sudah mendukung auto-compress di QoL 6.17
             payload.image_url = await window.utils.fileToBase64(fileInput.files[0]);
         } catch (e) {
             console.error("Image error:", e);
+            window.utils.showToast("Gagal memproses gambar", "error");
+            btn.disabled = false; btn.innerText = "Kirim Laporan";
+            return;
         }
     }
 
+    btn.innerText = "Mengirim...";
     const res = type === 'lost' ? await window.apiClient.items.reportLost(payload) : await window.apiClient.items.reportFound(payload);
+    
     if (res.ok) {
         window.utils.showToast("Laporan terkirim!", "success");
         form.reset();
@@ -256,10 +266,12 @@ async function handleReport(type) {
     } else {
         window.utils.showToast(res.data.error || "Terjadi kesalahan koneksi ke server.", "error");
     }
+    btn.disabled = false;
+    btn.innerText = "Kirim Laporan";
 }
 
 /**
- * 6. ADMIN DASHBOARD LOGIC (Management Power)
+ * 6. ADMIN DASHBOARD LOGIC (Full Management)
  */
 async function loadAdminDashboard() {
     if (!state.user || state.user.role !== 'admin') return;
@@ -368,7 +380,7 @@ async function handleAddLocation() {
 }
 
 /**
- * 7. MODAL DETAIL SYSTEM
+ * 7. MODAL DETAIL SYSTEM (Improved Sync)
  */
 async function viewDetail(id) {
     if (!id) return;
@@ -435,7 +447,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPageData('home');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // 8c. Bind Buttons FIX QoL 6.16
+    // 8c. Event Listeners
     $('#btn-login-action')?.addEventListener('click', handleLogin);
     $('#btn-register-action')?.addEventListener('click', handleRegister);
     $('#btn-logout-action')?.addEventListener('click', handleLogout);
@@ -451,7 +463,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-// Global Access untuk Onclick (TETAP ADA)
+// Global Access untuk Onclick
 window.viewDetail = viewDetail;
 window.updateItemStatus = updateItemStatus;
 window.deleteItem = deleteItem;
