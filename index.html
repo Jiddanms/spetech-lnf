@@ -112,9 +112,13 @@
 
                 <div id="sub-lost-list" class="sub-container">
                     <div class="search-bar-container">
-                        <input type="text" id="search-lost" placeholder="Cari nama barang..." class="glass-input">
+                        <input type="text" id="search-lost" placeholder="Cari nama barang yang hilang..." class="glass-input">
+                        <button type="button" class="btn-search" onclick="handleSearch('lost')">
+                            <i data-lucide="search"></i> Cari
+                        </button>
                     </div>
-                    <div id="lost-items-grid" class="items-grid"></div>
+                    <div id="lost-items-grid" class="items-grid">
+                        </div>
                 </div>
 
                 <div id="sub-lost-report" class="sub-container hidden">
@@ -128,7 +132,7 @@
                                 <label>Lokasi Terakhir Dilihat</label>
                                 <select id="lost-location" name="location_name" class="location-selector">
                                     <option value="">Pilih Lokasi...</option>
-                                    </select>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label>Nama Pelapor (Anda)</label>
@@ -164,7 +168,7 @@
                                 <label>Lokasi Penemuan</label>
                                 <select id="found-location" name="location_name" class="location-selector">
                                     <option value="">Pilih Lokasi...</option>
-                                    </select>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label>Nama Penemu</label>
@@ -188,8 +192,12 @@
                 <div id="sub-found-list" class="sub-container hidden">
                     <div class="search-bar-container">
                         <input type="text" id="search-found" placeholder="Cari laporan kehilangan..." class="glass-input">
+                        <button type="button" class="btn-search" onclick="handleSearch('found')">
+                            <i data-lucide="search"></i> Cari
+                        </button>
                     </div>
-                    <div id="found-items-grid" class="items-grid"></div>
+                    <div id="found-items-grid" class="items-grid">
+                        </div>
                 </div>
             </section>
 

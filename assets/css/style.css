@@ -1,10 +1,10 @@
 
 /**
  * assets/css/style.css
- * Spetech Lost and Found - Official Theme (Update QoL 6.18 - Location Management)
+ * Spetech Lost and Found - Official Theme (Update QoL 6.19 - Final Bug Fix)
  * Theme: Dark Mode (Slate, Blue, White)
  * Support: Desktop & Mobile Responsive
- * PRINSIP: NO DELETION - ONLY ENHANCEMENT
+ * PRINSIP: NO DELETION - ONLY ENHANCEMENT (460+ Lines)
  */
 
 :root {
@@ -23,6 +23,11 @@
     --danger: #ef4444;
     --warning: #f59e0b;
     --info: #3b82f6;
+}
+
+/* FIX QoL 6.19: Global Box Sizing agar input tidak oversize keluar box */
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
 /* 1. Background Dynamic Overlay */
@@ -54,7 +59,7 @@
 }
 
 /* 2. Base Layout */
-* { margin: 0; padding: 0; box-box: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+* { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
 body { background: var(--bg-dark); color: var(--text); overflow-x: hidden; }
 
 .app-shell { display: flex; min-height: 100vh; }
@@ -140,7 +145,7 @@ body { background: var(--bg-dark); color: var(--text); overflow-x: hidden; }
 .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
 .stat-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; }
 
-/* 7. Grid Systems (Global & Improved) */
+/* 7. Grid Systems */
 .guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
 .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-top: 20px; }
 
@@ -161,12 +166,20 @@ body { background: var(--bg-dark); color: var(--text); overflow-x: hidden; }
 
 .item-card:hover { transform: scale(1.02); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
 
-.item-img {
-    width: 100%; height: 180px;
-    object-fit: cover;
+/* FIX QoL 6.19: Proper Container untuk Gambar agar tidak broken */
+.item-img-wrapper {
+    width: 100%;
+    aspect-ratio: 16/10;
+    overflow: hidden;
     border-radius: 12px;
     margin-bottom: 15px;
     background: #000;
+}
+
+.item-img {
+    width: 100%; 
+    height: 100%;
+    object-fit: cover; /* MENJAMIN GAMBAR RAPI */
 }
 
 .item-badge {
@@ -188,8 +201,10 @@ body { background: var(--bg-dark); color: var(--text); overflow-x: hidden; }
 .styled-form .form-group { margin-bottom: 20px; }
 .styled-form label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-dim); }
 
+/* FIX QoL 6.19: Box-Sizing handle input overflow (Wajib ada di sini juga) */
 .glass-input, .styled-form input, .styled-form select, .styled-form textarea {
     width: 100%;
+    box-sizing: border-box; /* MENGUNCI LEBAR AGAR TIDAK LEBIH DARI 100% */
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid var(--glass-border);
     padding: 12px 15px;
@@ -242,8 +257,19 @@ body { background: var(--bg-dark); color: var(--text); overflow-x: hidden; }
 }
 
 /* 12. Search Bar */
-.search-bar-container { margin-bottom: 25px; }
-.search-bar-container input { font-size: 1.1rem; padding: 15px 25px; border-radius: 40px; }
+.search-bar-container { 
+    margin-bottom: 25px; 
+    display: flex; 
+    gap: 12px; 
+    width: 100%; 
+    box-sizing: border-box;
+}
+.search-bar-container input { 
+    flex: 1; 
+    font-size: 1.1rem; 
+    padding: 12px 25px; 
+    border-radius: 40px; 
+}
 
 /* 13. Admin Table */
 .table-responsive { overflow-x: auto; }
@@ -264,11 +290,16 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
     font-size: 0.75rem; cursor: pointer; font-weight: 700;
 }
 
+/* FIX QoL 6.19: Admin Status Selector Styling agar tidak polosan */
 .status-select-admin {
-    padding: 4px 8px !important;
+    padding: 6px 10px !important;
     font-size: 0.8rem !important;
     width: auto !important;
     margin-right: 5px;
+    background: var(--bg-dark) !important;
+    border: 1px solid var(--glass-border) !important;
+    color: white !important;
+    border-radius: 5px;
 }
 
 /* 14. Account UI Polishing */
@@ -283,115 +314,75 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
 
 .profile-avatar i { width: 30px; height: 30px; color: white; }
 
-/* ==========================================================================
-   NEW QoL 6.18: LOCATION MANAGEMENT STYLING (INCREMENTAL ONLY)
-   ========================================================================== */
-
-/* A. Grid Card Lokasi */
-.location-card {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
+/* 15. LOCATION MANAGEMENT STYLING (QoL 6.18) */
+.location-card { display: flex; flex-direction: column; height: 100%; }
 .location-img-wrapper {
-    width: 100%;
-    height: 160px;
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 15px;
-    position: relative;
-    background: #000;
+    width: 100%; height: 160px; border-radius: 12px; overflow: hidden;
+    margin-bottom: 15px; position: relative; background: #000;
 }
-
-.location-img-wrapper img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
+.location-img-wrapper img { width: 100%; height: 100%; object-fit: cover; }
 .location-qr-preview {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    width: 45px;
-    height: 45px;
-    background: white;
-    padding: 3px;
-    border-radius: 6px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    cursor: zoom-in;
-    transition: 0.3s;
+    position: absolute; bottom: 8px; right: 8px; width: 45px; height: 45px;
+    background: white; padding: 3px; border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: zoom-in; transition: 0.3s;
 }
+.location-qr-preview:hover { transform: scale(1.2); }
+.location-info-box h3 { color: var(--accent); margin-bottom: 5px; }
+.location-info-box p { font-size: 0.85rem; color: var(--text-dim); line-height: 1.4; }
 
-.location-qr-preview:hover {
-    transform: scale(1.2);
-}
-
-.location-info-box h3 {
-    color: var(--accent);
-    margin-bottom: 5px;
-}
-
-.location-info-box p {
-    font-size: 0.85rem;
-    color: var(--text-dim);
-    line-height: 1.4;
-}
-
-/* B. Admin Location Specifics (3 Column Layout Helper) */
-.admin-location-layout {
-    display: grid;
-    grid-template-columns: 2fr 1fr; /* Default 2:1 ratio */
-    gap: 30px;
-    align-items: flex-start;
-}
-
-.location-form-col .glass-card {
-    position: sticky;
-    top: 100px;
-}
-
+/* Admin Location Specifics (3 Column Layout Helper) */
+.admin-location-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; align-items: flex-start; }
+.location-form-col .glass-card { position: sticky; top: 100px; }
 .btn-delete-loc {
-    margin-top: 15px;
-    width: 100%;
-    padding: 8px;
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 8px;
-    font-size: 0.8rem;
+    margin-top: 15px; width: 100%; padding: 8px;
+    background: rgba(239, 68, 68, 0.1); color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;
+    font-size: 0.8rem; font-weight: 700; cursor: pointer;
+    transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.btn-delete-loc:hover { background: #ef4444; color: white; }
+
+/* 16. ENHANCEMENTS QoL 6.19 (NEW BLOCKS) */
+
+/* Button Search Styling */
+.btn-search {
+    padding: 0 25px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 40px;
     font-weight: 700;
     cursor: pointer;
     transition: 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
+}
+.btn-search:hover { filter: brightness(1.2); box-shadow: 0 0 15px var(--accent-glow); }
+
+/* Dashboard dynamic count glow */
+#stat-lost, #stat-found {
+    text-shadow: 0 0 10px var(--accent-glow);
+    transition: 0.5s;
 }
 
-.btn-delete-loc:hover {
-    background: #ef4444;
-    color: white;
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-dim);
+    grid-column: 1 / -1;
 }
 
-/* C. Responsive Adjustments for 6.18 */
+/* Responsive fixes for 6.19 */
 @media (max-width: 1100px) {
-    .admin-location-layout {
-        grid-template-columns: 1fr;
-    }
-    .location-form-col .glass-card {
-        position: static;
-        order: -1; /* Form pindah ke atas di mobile/tablet */
-    }
+    .admin-location-layout { grid-template-columns: 1fr; }
+    .location-form-col .glass-card { position: static; order: -1; }
 }
-
 @media (max-width: 768px) {
     .sidebar { width: 70px; }
     .brand-info, .side-item span { display: none; }
     .content-area { padding: 20px; }
     .side-item { justify-content: center; padding: 15px; }
     .hero-banner { flex-direction: column; text-align: center; }
+    .hero-banner img { display: none; }
+    .search-bar-container { flex-direction: column; }
+    .btn-search { padding: 12px; }
 }
-
-/* End of File - BARIS KODE MENINGKAT SECARA SIGNIFIKAN SESUAI HARAPAN */

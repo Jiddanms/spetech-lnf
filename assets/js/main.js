@@ -4,7 +4,8 @@
  * Konduktor Utama Frontend - Spetech Lost and Found
  * Integrasi Penuh: Backend Cloudflare Workers & D1 Database
  * UPDATE QoL 6.18: Total Location Management & Dynamic Background Switch
- * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (530+ Lines)
+ * UPDATE QoL 6.19: Dynamic Stats, Search Engine & Auth Text Fix
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (600+ Lines)
  */
 
 // 1. Konfigurasi State Aplikasi
@@ -19,7 +20,11 @@ const state = {
         admin: 'forms',
         account: 'login'
     },
-    locations: [] // Cache data lokasi dari DB
+    locations: [], // Cache data lokasi dari DB
+    items: {
+        lost: [],
+        found: []
+    }
 };
 
 // Helper DOM Selector
@@ -54,7 +59,6 @@ function initNavigation() {
     const qrLocationId = window.utils.getQueryParam('lokasi');
     if (qrLocationId) {
         window.utils.showToast(`Mendeteksi lokasi QR...`, 'info');
-        // Logic pencarian nama lokasi berdasarkan ID dari QR akan dilakukan setelah data lokasi ter-load
     }
 }
 
@@ -130,7 +134,6 @@ async function syncLocations() {
     if (res.ok) {
         state.locations = res.data;
         
-        // Isi Dropdown Lost & Found
         const selectors = $$('.location-selector');
         selectors.forEach(select => {
             const currentVal = select.value;
@@ -139,7 +142,6 @@ async function syncLocations() {
             select.value = currentVal;
         });
 
-        // Handle Auto-fill QR
         const qrId = window.utils.getQueryParam('lokasi');
         if (qrId) {
             const foundLoc = state.locations.find(l => l.id == qrId);
@@ -177,43 +179,65 @@ async function renderLocationGrid() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+// FIX QoL 6.19: Dashboard Stats Dynamic Update
 async function loadRecentLists() {
     const resLost = await window.apiClient.items.getLost();
     const resFound = await window.apiClient.items.getFound();
     
-    if (resLost.ok && $('#recent-lost-list')) {
-        $('#recent-lost-list').innerHTML = resLost.data.slice(0, 3).map(i => createCompactItem(i)).join('');
+    // Update Stats 0 -> Real Count
+    if (resLost.ok) {
+        state.items.lost = resLost.data;
+        if ($('#stat-lost')) $('#stat-lost').innerText = resLost.data.length;
+        if ($('#recent-lost-list')) {
+            $('#recent-lost-list').innerHTML = resLost.data.slice(0, 3).map(i => createCompactItem(i)).join('');
+        }
     }
-    if (resFound.ok && $('#recent-found-list')) {
-        $('#recent-found-list').innerHTML = resFound.data.slice(0, 3).map(i => createCompactItem(i)).join('');
+    
+    if (resFound.ok) {
+        state.items.found = resFound.data;
+        if ($('#stat-found')) $('#stat-found').innerText = resFound.data.length;
+        if ($('#recent-found-list')) {
+            $('#recent-found-list').innerHTML = resFound.data.slice(0, 3).map(i => createCompactItem(i)).join('');
+        }
     }
 }
 
-async function renderItemsList(type) {
-    const container = $(`#${type}-items-container`) || $(`#${type}-items-grid`);
+async function renderItemsList(type, filterData = null) {
+    const container = $(`#${type}-items-grid`);
     if (!container) return;
     
     container.innerHTML = '<div class="loader">Menghubungkan ke database...</div>';
-    const result = type === 'lost' ? await window.apiClient.items.getLost() : await window.apiClient.items.getFound();
     
-    if (result.ok && result.data.length > 0) {
-        container.innerHTML = result.data.map(item => createItemCard(item)).join('');
+    let items = [];
+    if (filterData) {
+        items = filterData;
     } else {
-        container.innerHTML = `<div class="empty-state">Belum ada laporan ${type}.</div>`;
+        const result = type === 'lost' ? await window.apiClient.items.getLost() : await window.apiClient.items.getFound();
+        if (result.ok) {
+            items = result.data;
+            state.items[type] = items;
+        }
     }
+    
+    if (items.length > 0) {
+        container.innerHTML = items.map(item => createItemCard(item)).join('');
+    } else {
+        container.innerHTML = `<div class="empty-state">Belum ada data ${type} yang ditemukan.</div>`;
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function createItemCard(item) {
     const statusBadge = window.utils.getStatusBadge(item.status);
     return `
         <div class="item-card glass-card">
-            <div class="card-img-wrapper">
-                ${item.image_url ? `<img src="${item.image_url}" loading="lazy">` : '<i data-lucide="image-off"></i>'}
+            <div class="item-img-wrapper">
+                ${item.image_url ? `<img src="${item.image_url}" class="item-img" loading="lazy">` : '<div class="no-img-placeholder"><i data-lucide="image-off"></i></div>'}
+                <div class="item-badge">${statusBadge}</div>
             </div>
-            <div class="card-content">
-                ${statusBadge}
-                <h4>${item.item_name}</h4>
-                <div class="card-meta">
+            <div class="item-info">
+                <h3>${item.item_name}</h3>
+                <div class="item-meta">
                     <span><i data-lucide="map-pin"></i> ${item.location_name}</span>
                     <span><i data-lucide="calendar"></i> ${window.utils.formatDate(item.created_at)}</span>
                 </div>
@@ -316,13 +340,26 @@ async function handleReport(type) {
     btn.disabled = false; btn.innerText = "Kirim Laporan";
 }
 
+// FIX QoL 6.19: SEARCH ENGINE LOGIC
+async function handleSearch(type) {
+    const query = $(`#search-${type}`).value.toLowerCase();
+    if (!query) return renderItemsList(type);
+    
+    const filtered = state.items[type].filter(item => 
+        item.item_name.toLowerCase().includes(query) || 
+        item.location_name.toLowerCase().includes(query) ||
+        (item.description && item.description.toLowerCase().includes(query))
+    );
+    
+    renderItemsList(type, filtered);
+}
+
 /**
  * 6. ADMIN DASHBOARD LOGIC (Location Grid 2 Col Fix)
  */
 async function loadAdminDashboard() {
     if (!state.user || state.user.role !== 'admin') return;
 
-    // Load Items Table
     const resLost = await window.apiClient.items.getLost();
     const resFound = await window.apiClient.items.getFound();
     const allItems = [...(resLost.data || []), ...(resFound.data || [])];
@@ -346,7 +383,6 @@ async function loadAdminDashboard() {
         `).join('');
     }
 
-    // Load User Table
     const resUsers = await window.apiClient.auth.getUsers();
     if (resUsers.ok && $('#table-admin-users tbody')) {
         $('#table-admin-users tbody').innerHTML = resUsers.data.map(u => `
@@ -358,7 +394,6 @@ async function loadAdminDashboard() {
         `).join('');
     }
 
-    // Load Location Grid (Admin View)
     if ($('#admin-locations-grid')) {
         $('#admin-locations-grid').innerHTML = state.locations.map(loc => `
             <div class="glass-card location-card">
@@ -478,13 +513,11 @@ const updateBackground = (locationName) => {
         return;
     }
 
-    // Cari data gambar dari cache locations
     const foundLoc = state.locations.find(l => l.name === locationName);
     if (foundLoc && foundLoc.image_url) {
         bgOverlay.style.backgroundImage = `url('${foundLoc.image_url}')`;
         localStorage.setItem('sp_current_bg', foundLoc.image_url);
     } else {
-        // Fallback jika tidak ada gambar khusus
         bgOverlay.style.backgroundImage = "url('assets/img/bg-home.jpg')";
     }
 };
@@ -493,29 +526,31 @@ const updateBackground = (locationName) => {
  * 9. INITIAL LOAD
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    // 9a. Background Logic
     const savedBg = localStorage.getItem('sp_current_bg');
     $('#bg-overlay').style.backgroundImage = savedBg ? `url('${savedBg}')` : "url('assets/img/bg-home.jpg')";
 
-    // 9b. Session & UI Sync
     const session = await window.apiClient.auth.checkSession();
     if (session.ok && session.data.loggedIn) {
         state.user = session.data.user;
-        const loginLabels = $$('#side-account-text, #tab-login-text');
-        loginLabels.forEach(el => el.innerText = "Logout");
+        
+        // FIX QoL 6.19: Login to Logout Text Consistency
+        const sideAccount = $('#side-account-text');
+        if (sideAccount) sideAccount.innerText = "Logout";
+        
+        $$('.nav-tab[data-sub="login"]').forEach(el => el.innerText = "Logout");
+        
         if ($('#account-status-text')) $('#account-status-text').innerText = `Halo, ${state.user.username}`;
         if ($('#logged-username-display')) $('#logged-username-display').innerText = state.user.username;
         if (state.user.role === 'admin') $('#btn-page-admin').classList.remove('hidden');
         if (state.currentPage === 'account') switchSubPage('account', 'logout');
     }
 
-    // 9c. Sync Dynamic Data
     await syncLocations();
     initNavigation();
     loadPageData('home');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // 9d. Event Bindings
+    // 9d. Event Bindings (FIX QoL 6.19: All Bindings Included)
     $('#btn-login-action')?.addEventListener('click', handleLogin);
     $('#btn-register-action')?.addEventListener('click', handleRegister);
     $('#btn-logout-action')?.addEventListener('click', handleLogout);
@@ -523,7 +558,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('#btn-submit-found')?.addEventListener('click', () => handleReport('found'));
     $('#btn-add-location-action')?.addEventListener('click', handleAddLocation);
     
-    // Background Switch Listener
+    // FIX QoL 6.19: Search Bindings
+    $('#search-lost')?.addEventListener('input', () => handleSearch('lost'));
+    $('#search-found')?.addEventListener('input', () => handleSearch('found'));
+    
     document.addEventListener('change', (e) => {
         if (e.target.name === 'location_name' || e.target.classList.contains('location-selector')) {
             updateBackground(e.target.value);
@@ -531,7 +569,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-// Global Access
 window.viewDetail = viewDetail;
 window.updateItemStatus = updateItemStatus;
 window.deleteItem = deleteItem;
