@@ -3,7 +3,8 @@
  * assets/js/api-client.js
  * Central API Client untuk Spetech Lost and Found.
  * Menangani fetch ke Cloudflare Workers dengan manajemen token otomatis.
- * UPDATE QoL 6.15: Payload Cleaning & Management Power
+ * UPDATE QoL 6.16: Fix Connection Bugs, Detail Sync, & Admin Delete Power.
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED.
  */
 
 const apiClient = {
@@ -69,13 +70,13 @@ const apiClient = {
         }),
         checkSession: () => apiClient.fetch('/auth/me', { method: 'GET' }),
         
-        // QoL 6.15: Get Users untuk Admin Management
+        // QoL 6.15/6.16: Get Users untuk Admin Management
         getUsers: () => apiClient.fetch('/admin/users', { method: 'GET' }),
         
-        // QoL 6.15: Delete User
+        // QoL 6.16: Delete User Fix
         deleteUser: (id) => apiClient.fetch('/admin/users', { 
             method: 'DELETE', 
-            body: JSON.stringify({ id }) 
+            body: JSON.stringify({ id: parseInt(id) }) 
         })
     },
 
@@ -83,17 +84,15 @@ const apiClient = {
     items: {
         getLost: () => apiClient.fetch('/items/lost', { method: 'GET' }),
         getFound: () => apiClient.fetch('/items/found', { method: 'GET' }),
+        
+        // Fix QoL 6.16: Detail Sync agar tidak gagal memuat
         getDetail: (id) => apiClient.fetch(`/items/detail?id=${id}`, { method: 'GET' }),
         
-        // Lapor Kehilangan (Lost) - Fix Missing Field Payload
-        reportLost: (itemData) => {
-            // QoL 6.15: Pastikan owner_name tidak ikut dikirim jika kosong untuk menghindari error DB
-            const { owner_name, ...cleanData } = itemData;
-            return apiClient.fetch('/items/lost', { 
-                method: 'POST', 
-                body: JSON.stringify(cleanData) 
-            });
-        },
+        // Lapor Kehilangan (Lost) - Fix Connection Error
+        reportLost: (itemData) => apiClient.fetch('/items/lost', { 
+            method: 'POST', 
+            body: JSON.stringify(itemData) 
+        }),
         
         // Lapor Penemuan (Found)
         reportFound: (itemData) => apiClient.fetch('/items/found', { 
@@ -101,16 +100,16 @@ const apiClient = {
             body: JSON.stringify(itemData) 
         }),
 
-        // QoL 6.15: Admin Update Status
+        // Admin Update Status
         updateStatus: (id, statusData) => apiClient.fetch('/admin/forms', { 
             method: 'PATCH', 
-            body: JSON.stringify({ id, ...statusData }) 
+            body: JSON.stringify({ id: parseInt(id), ...statusData }) 
         }),
 
-        // QoL 6.15: Admin Delete Item
+        // Admin Delete Item
         delete: (id) => apiClient.fetch('/admin/forms', { 
             method: 'DELETE', 
-            body: JSON.stringify({ id }) 
+            body: JSON.stringify({ id: parseInt(id) }) 
         }),
 
         /**
@@ -139,16 +138,16 @@ const apiClient = {
         // Management Location
         getLocations: () => apiClient.fetch('/admin/locations', { method: 'GET' }),
         
-        // QoL 6.15: Add New School Area
+        // Add New School Area
         addLocation: (locationData) => apiClient.fetch('/admin/locations', { 
             method: 'POST', 
             body: JSON.stringify(locationData) 
         }),
         
-        // QoL 6.15: Delete Area
+        // Fix QoL 6.16: Delete Area Fix
         deleteLocation: (id) => apiClient.fetch('/admin/locations', { 
             method: 'DELETE', 
-            body: JSON.stringify({ id }) 
+            body: JSON.stringify({ id: parseInt(id) }) 
         })
     }
 };

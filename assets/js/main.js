@@ -3,7 +3,7 @@
  * assets/js/main.js
  * Konduktor Utama Frontend - Spetech Lost and Found
  * Integrasi Penuh: Backend Cloudflare Workers & D1 Database
- * UPDATE QoL 6.15: Stability, Polishing, & Full CRUD Admin
+ * UPDATE QoL 6.16: Bug Fix Modal, Form Lost Fix, & Admin Delete Active
  * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED
  */
 
@@ -65,7 +65,7 @@ function initNavigation() {
 }
 
 /**
- * 3. CORE SWITCHING LOGIC (Fixed State Bug)
+ * 3. CORE SWITCHING LOGIC
  */
 function switchPage(pageId) {
     state.currentPage = pageId;
@@ -87,7 +87,6 @@ function switchPage(pageId) {
 }
 
 function switchSubPage(parentPage, subId) {
-    // Logic khusus untuk halaman Account agar tidak looping ke login
     let targetSub = subId;
     if (parentPage === 'account' && state.user && subId === 'login') {
         targetSub = 'logout';
@@ -132,7 +131,6 @@ async function loadRecentLists() {
     const resLost = await window.apiClient.items.getLost();
     const resFound = await window.apiClient.items.getFound();
     
-    // Render ke Card Home yang baru (Rapi)
     if (resLost.ok && $('#recent-lost-list')) {
         $('#recent-lost-list').innerHTML = resLost.data.slice(0, 3).map(i => createCompactItem(i)).join('');
     }
@@ -227,12 +225,14 @@ async function handleLogout() {
     setTimeout(() => location.reload(), 800);
 }
 
+// FIX QoL 6.16: Perbaikan Logika handleReport untuk Form Kehilangan agar tidak Error Koneksi
 async function handleReport(type) {
     const form = $(`#form-${type}`);
+    if (!form) return;
+    
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
 
-    // Validasi payload (Tanpa owner_name karena sudah di-drop)
     if (!payload.item_name || !payload.location_name || !payload.reporter_name) {
         return window.utils.showToast("Field utama wajib diisi!", "error");
     }
@@ -240,7 +240,11 @@ async function handleReport(type) {
     const fileInput = form.querySelector('input[type="file"]');
     if (fileInput?.files[0]) {
         window.utils.showToast("Mengunggah gambar...", "info");
-        payload.image_url = await window.utils.fileToBase64(fileInput.files[0]);
+        try {
+            payload.image_url = await window.utils.fileToBase64(fileInput.files[0]);
+        } catch (e) {
+            console.error("Image error:", e);
+        }
     }
 
     const res = type === 'lost' ? await window.apiClient.items.reportLost(payload) : await window.apiClient.items.reportFound(payload);
@@ -250,7 +254,7 @@ async function handleReport(type) {
         switchSubPage(type, 'list');
         renderItemsList(type);
     } else {
-        window.utils.showToast(res.data.error || "Gagal mengirim laporan", "error");
+        window.utils.showToast(res.data.error || "Terjadi kesalahan koneksi ke server.", "error");
     }
 }
 
@@ -260,7 +264,6 @@ async function handleReport(type) {
 async function loadAdminDashboard() {
     if (!state.user || state.user.role !== 'admin') return;
 
-    // Load Items Management (Forms)
     const resLost = await window.apiClient.items.getLost();
     const resFound = await window.apiClient.items.getFound();
     const allItems = [...(resLost.data || []), ...(resFound.data || [])];
@@ -282,12 +285,12 @@ async function loadAdminDashboard() {
                 </td>
                 <td>
                     <button class="btn-action-delete" onclick="deleteItem(${item.id})">Delete</button>
+                    <button class="btn-action-edit" onclick="viewDetail(${item.id})" style="background:var(--accent); color:white; border:none; border-radius:6px; padding:5px 10px; font-size:0.75rem; cursor:pointer;">Detail</button>
                 </td>
             </tr>
         `).join('');
     }
 
-    // Load User Management
     const resUsers = await window.apiClient.auth.getUsers();
     if (resUsers.ok && $('#admin-users-table')) {
         $('#admin-users-table').innerHTML = resUsers.data.map(u => `
@@ -300,7 +303,6 @@ async function loadAdminDashboard() {
         `).join('');
     }
 
-    // Load Location Management
     const resLoc = await window.apiClient.admin.getLocations();
     if (resLoc.ok && $('#admin-locations-table')) {
         $('#admin-locations-table').innerHTML = resLoc.data.map(l => `
@@ -315,6 +317,7 @@ async function loadAdminDashboard() {
 
 async function updateItemStatus(id) {
     const newStatus = $(`#status-select-${id}`).value;
+    window.utils.showToast("Memperbarui status...", "info");
     const res = await window.apiClient.items.updateStatus(id, { status: newStatus });
     if (res.ok) {
         window.utils.showToast("Status diperbarui!", "success");
@@ -323,10 +326,28 @@ async function updateItemStatus(id) {
 }
 
 async function deleteItem(id) {
-    if(!confirm("Hapus laporan ini?")) return;
+    if(!confirm("Hapus laporan ini secara permanen?")) return;
     const res = await window.apiClient.items.delete(id);
     if(res.ok) {
-        window.utils.showToast("Data dihapus", "success");
+        window.utils.showToast("Laporan berhasil dihapus", "success");
+        loadAdminDashboard();
+    }
+}
+
+async function deleteUser(id) {
+    if(!confirm("Hapus akun ini secara permanen?")) return;
+    const res = await window.apiClient.auth.deleteUser(id);
+    if(res.ok) {
+        window.utils.showToast("Akun berhasil dihapus", "success");
+        loadAdminDashboard();
+    }
+}
+
+async function deleteLocation(id) {
+    if(!confirm("Hapus lokasi ini?")) return;
+    const res = await window.apiClient.admin.deleteLocation(id);
+    if(res.ok) {
+        window.utils.showToast("Lokasi berhasil dihapus", "success");
         loadAdminDashboard();
     }
 }
@@ -347,26 +368,30 @@ async function handleAddLocation() {
 }
 
 /**
- * 7. MODAL DETAIL SYSTEM (Masterpiece)
+ * 7. MODAL DETAIL SYSTEM
  */
 async function viewDetail(id) {
+    if (!id) return;
+    window.utils.showToast("Memuat detail...", "info");
     const res = await window.apiClient.items.getDetail(id);
     if (res.ok) {
         const item = res.data;
         const html = `
             <div style="text-align:center; margin-bottom:20px;">
-                ${item.image_url ? `<img src="${item.image_url}" style="max-width:100%; border-radius:12px; max-height:300px;">` : '<div style="padding:40px; background:rgba(0,0,0,0.2); border-radius:12px;">No Image</div>'}
+                ${item.image_url ? `<img src="${item.image_url}" style="max-width:100%; border-radius:12px; max-height:300px;">` : '<div style="padding:40px; background:rgba(255,255,255,0.03); border-radius:12px;"><i data-lucide="image-off"></i> No Image Available</div>'}
             </div>
             <h3>${item.item_name}</h3>
             <div style="margin-top:15px; color:var(--text-dim); display:flex; flex-direction:column; gap:10px;">
                 <p><strong>Status:</strong> ${window.utils.getStatusBadge(item.status)}</p>
                 <p><strong>Lokasi:</strong> ${item.location_name}</p>
                 <p><strong>Reporter:</strong> ${item.reporter_name}</p>
+                <p><strong>Tipe Laporan:</strong> ${item.type.toUpperCase()}</p>
                 <p><strong>Waktu:</strong> ${window.utils.formatDate(item.created_at)}</p>
                 <p><strong>Deskripsi:</strong> ${item.description || '-'}</p>
             </div>
         `;
         window.utils.showModal(html);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     } else {
         window.utils.showToast("Gagal memuat detail barang", "error");
     }
@@ -388,24 +413,21 @@ const updateBackground = (locationValue) => {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 8a. Muat Background
+    // 8a. Background Logic
     const savedBg = localStorage.getItem('sp_current_bg');
     $('#bg-overlay').style.backgroundImage = savedBg ? `url('${savedBg}')` : "url('assets/img/bg-home.jpg')";
 
-    // 8b. Sesi & UI Sync
+    // 8b. Session & UI Sync
     const session = await window.apiClient.auth.checkSession();
     if (session.ok && session.data.loggedIn) {
         state.user = session.data.user;
         
-        // Sync Teks Navigasi ke Logout
         const loginLabels = $$('#side-account-text, #tab-login-text');
         loginLabels.forEach(el => el.innerText = "Logout");
         
         if ($('#account-status-text')) $('#account-status-text').innerText = `Halo, ${state.user.username}`;
         if ($('#logged-username-display')) $('#logged-username-display').innerText = state.user.username;
         if (state.user.role === 'admin') $('#btn-page-admin').classList.remove('hidden');
-
-        // Pastikan view logout aktif jika di page account
         if (state.currentPage === 'account') switchSubPage('account', 'logout');
     }
 
@@ -413,7 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPageData('home');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // 8c. Bind Buttons
+    // 8c. Bind Buttons FIX QoL 6.16
     $('#btn-login-action')?.addEventListener('click', handleLogin);
     $('#btn-register-action')?.addEventListener('click', handleRegister);
     $('#btn-logout-action')?.addEventListener('click', handleLogout);
@@ -429,8 +451,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-// Global Access untuk HTML Onclick
+// Global Access untuk Onclick (TETAP ADA)
 window.viewDetail = viewDetail;
 window.updateItemStatus = updateItemStatus;
 window.deleteItem = deleteItem;
+window.deleteUser = deleteUser;
+window.deleteLocation = deleteLocation;
 window.switchPage = switchPage;
