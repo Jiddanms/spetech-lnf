@@ -214,7 +214,7 @@ async function renderItemsList(type, filterData = null) {
     const container = $(`#${type}-items-grid`);
     if (!container) return;
     
-    container.innerHTML = '<div class="loader">Menghubungkan ke database...</div>';
+    container.innerHTML = '<div class="loader"> </div>';
     
     let items = [];
     if (filterData) {
