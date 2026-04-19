@@ -212,7 +212,7 @@ async function renderItemsList(type, filterData = null) {
     if (filterData) {
         items = filterData;
     } else {
-        const result = type === 'found' ? await window.apiClient.items.getFound() : await window.apiClient.items.getLost();
+        const result = type === 'lost' ? await window.apiClient.items.getLost() : await window.apiClient.items.getFound();
         if (result.ok) {
             items = result.data;
             state.items[type] = items;
