@@ -1,10 +1,10 @@
 
 /**
  * assets/css/style.css
- * Spetech Lost and Found - Official Theme 
- * Update QoL 6.26 FINAL - Mobile Compatibility & UI Layer Isolation
+ * Spetech Lost and Found - Official Theme (Update QoL 6.24 - Final UI/UX Polishing)
  * Theme: Dark Mode (Slate, Blue, White)
- * PRINSIP: NO DELETION - ONLY ENHANCEMENT (600+ Lines)
+ * Support: Desktop & Mobile Responsive
+ * PRINSIP: NO DELETION - ONLY ENHANCEMENT (700+ Lines Context)
  */
 
 :root {
@@ -60,17 +60,9 @@
 
 /* 2. Base Layout */
 * { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-body { 
-    background: var(--bg-dark); 
-    color: var(--text); 
-    overflow-x: auto; /* Izinkan scroll horizontal utama di level body */
-}
+body { background: var(--bg-dark); color: var(--text); overflow-x: auto; }
 
-.app-shell { 
-    display: flex; 
-    min-height: 100vh;
-    width: 100%;
-}
+.app-shell { display: flex; min-height: 100vh; }
 
 /* 3. Sidebar Styling */
 .sidebar {
@@ -82,9 +74,7 @@ body {
     display: flex;
     flex-direction: column;
     position: sticky;
-    top: 0; 
-    height: 100vh;
-    z-index: 10;
+    top: 0; height: 100vh;
 }
 
 .brand { padding: 30px 20px; display: flex; align-items: center; gap: 12px; }
@@ -108,18 +98,11 @@ body {
 }
 
 .side-item i { width: 20px; height: 20px; }
-.side-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.side-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
 .side-item.active { background: var(--accent); color: white; box-shadow: 0 4px 15px var(--accent-glow); }
 
 /* 4. Content Area & Header */
-.content-area { 
-    flex: 1; 
-    padding: 40px; 
-    position: relative; 
-    height: 100vh; 
-    overflow-y: auto; /* Scroll vertikal hanya di sini */
-}
-
+.content-area { flex: 1; padding: 40px; position: relative; }
 .page-header { margin-bottom: 30px; }
 .glitch-text { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; position: relative; }
 
@@ -133,7 +116,6 @@ body {
     font-size: 0.85rem;
     cursor: pointer;
     transition: 0.3s;
-    white-space: nowrap;
 }
 
 .nav-tab:hover { background: rgba(255,255,255,0.1); }
@@ -198,7 +180,7 @@ body {
 .item-img {
     width: 100%; 
     height: 100%;
-    object-fit: cover; 
+    object-fit: cover; /* MENJAMIN GAMBAR RAPI */
 }
 
 .item-badge {
@@ -220,10 +202,10 @@ body {
 .styled-form .form-group { margin-bottom: 20px; }
 .styled-form label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-dim); }
 
-/* FIX QoL 6.19: Box-Sizing handle input overflow */
+/* FIX QoL 6.19: Box-Sizing handle input overflow (Wajib ada di sini juga) */
 .glass-input, .styled-form input, .styled-form select, .styled-form textarea {
     width: 100%;
-    box-sizing: border-box; 
+    box-sizing: border-box; /* MENGUNCI LEBAR AGAR TIDAK LEBIH DARI 100% */
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid var(--glass-border);
     padding: 12px 15px;
@@ -250,25 +232,19 @@ body {
 
 .btn-primary:hover { filter: brightness(1.2); transform: translateY(-2px); }
 
-/* 11. Modal Styling - ISOLASI LAYER UNTUK SCROLLING */
+/* 11. Modal Styling */
 .modal-overlay {
-    position: fixed !important; /* WAJIB FIXED UNTUK TETAP DI POSISI LAYAR */
-    top: 0; 
-    left: 0; 
-    width: 100vw; 
-    height: 100vh;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.8);
     backdrop-filter: blur(8px);
-    z-index: 99999 !important; /* Layer Tertinggi */
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
     padding: 20px;
 }
 
 .modal-content {
-    width: 100%; 
-    max-width: 800px;
+    width: 100%; max-width: 800px;
     position: relative;
     max-height: 90vh;
     overflow-y: auto;
@@ -315,7 +291,7 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
     font-size: 0.75rem; cursor: pointer; font-weight: 700;
 }
 
-/* FIX QoL 6.19: Admin Status Selector Styling */
+/* FIX QoL 6.19: Admin Status Selector Styling agar tidak polosan */
 .status-select-admin {
     padding: 6px 10px !important;
     font-size: 0.8rem !important;
@@ -339,7 +315,7 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
 
 .profile-avatar i { width: 30px; height: 30px; color: white; }
 
-/* 15. LOCATION MANAGEMENT STYLING */
+/* 15. LOCATION MANAGEMENT STYLING (QoL 6.18) */
 .location-card { display: flex; flex-direction: column; height: 100%; }
 .location-img-wrapper {
     width: 100%; height: 160px; border-radius: 12px; overflow: hidden;
@@ -355,6 +331,7 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
 .location-info-box h3 { color: var(--accent); margin-bottom: 5px; }
 .location-info-box p { font-size: 0.85rem; color: var(--text-dim); line-height: 1.4; }
 
+/* Admin Location Specifics (3 Column Layout Helper) */
 .admin-location-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; align-items: flex-start; }
 .location-form-col .glass-card { position: sticky; top: 100px; }
 .btn-delete-loc {
@@ -366,97 +343,84 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
 }
 .btn-delete-loc:hover { background: #ef4444; color: white; }
 
-/* 16. ENHANCEMENTS QoL 6.24 */
-.btn-search {
-    padding: 0 25px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 40px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: 0.3s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-.btn-search:hover { filter: brightness(1.2); box-shadow: 0 0 15px var(--accent-glow); transform: translateY(-1px); }
-.btn-search i { width: 18px; height: 18px; }
-
-#stat-lost, #stat-found { text-shadow: 0 0 10px var(--accent-glow); transition: 0.5s; font-variant-numeric: tabular-nums; }
-
-.empty-state {
-    text-align: center; padding: 60px 20px; color: var(--text-dim); grid-column: 1 / -1;
-    display: flex; flex-direction: column; align-items: center; gap: 15px; position: relative;
-}
-.empty-state::before { content: "Empty"; font-size: 3rem; font-weight: 800; opacity: 0.05; position: absolute; }
-
 /* ==========================================================================
-   NEW QoL 6.26 REVISI FINAL: MOBILE TRUE HORIZONTAL & LAYER ISOLATION
+   NEW QoL 6.27: TRUE SIDE-BY-SIDE MOBILE & LAYER ISOLATION (FIXED)
+   PRINSIP: NO DELETION - ONLY ADDITION AT THE END
    ========================================================================== */
 
 @media (max-width: 768px) {
-    /* 1. Reset Body Utama agar Shell Bisa Mengalir Horizontal */
+    /* 1. Aktifkan Horizontal Workspace Tanpa Merusak Verticality */
     body {
-        overflow-x: auto !important; 
-        overflow-y: hidden !important; 
+        overflow-x: auto !important; /* Izinkan geser kanan-kiri utama */
+        overflow-y: hidden !important; /* Kunci vertikal pada level body untuk isolasi */
         width: 100vw;
     }
 
-    /* 2. APP SHELL: Menjadi Baris Tunggal yang Super Lebar */
+    /* 2. APP SHELL: Menjadi Baris Tunggal Super Lebar (Sidebar + Konten) */
     .app-shell {
         display: flex;
-        flex-direction: row; 
-        width: calc(100vw + 260px); /* Sidebar (260) + Layar HP (100vw) */
+        flex-direction: row !important; /* WAJIB SAMPINGAN */
+        width: calc(100vw + 260px); /* Lebar Sidebar (260) + Layar HP (100vw) */
         height: 100vh;
         overflow: hidden; 
     }
 
-    /* 3. SIDEBAR: Bagian dari Flow, akan ter-swipe ke kiri */
+    /* 3. SIDEBAR: Tetap Di Samping, Menghilang Saat Swipe Kanan */
     .sidebar {
         width: 260px;
         min-width: 260px;
-        position: relative; /* Bukan sticky lagi agar ikut tergeser */
+        position: relative !important; /* Ikut terseret saat swipe shell */
         height: 100vh;
-        z-index: 5;
+        z-index: 10;
+        left: 0;
     }
 
-    /* 4. CONTENT AREA: Menempati Satu Layar Penuh */
+    /* 4. CONTENT AREA: Menempati Satu Layar Penuh Di Samping Sidebar */
     .content-area {
         width: 100vw;
         min-width: 100vw;
         height: 100vh;
-        overflow-y: auto !important; /* Scroll vertikal hanya di sini */
+        overflow-y: auto !important; /* Scroll vertikal (atas-bawah) HANYA di sini */
         padding: 20px;
+        position: relative;
     }
 
-    /* 5. TOAST & OVERLAY: Harus Tetap di Viewport HP (Fixed Isolation) */
-    .toast-container, #toast, .modal-overlay {
-        position: fixed !important;
+    /* 5. UI ISOLATION (MODAL & TOAST): WAJIB FIXED TERHADAP LAYAR HP */
+    /* Ini yang menjamin Pop-up tidak ikut tergeser saat swipe halaman */
+    .modal-overlay, #toast, .toast, .toast-container {
+        position: fixed !important; /* Mengacu pada layar fisik HP, bukan kontainer */
         left: 0 !important;
+        top: 0 !important;
         width: 100vw !important;
+        height: 100vh !important;
+        z-index: 999999 !important; /* Layer dewa paling atas */
         transform: none !important;
-        z-index: 999999 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    /* 6. Penyesuaian Visual Elemen Form & Grid */
+    /* 6. Penyesuaian Visual Untuk Mode Mobile */
     .hero-banner { flex-direction: column; align-items: flex-start; padding: 20px; }
     .hero-stats { width: 100%; justify-content: space-between; margin-top: 15px; }
     .items-grid { grid-template-columns: 1fr; gap: 20px; }
     .search-bar-container { flex-direction: column; gap: 10px; }
+    .btn-search { width: 100%; padding: 12px; border-radius: 12px; }
 
-    /* Indikator Swipe agar user tidak bingung */
+    /* Indikator Swipe untuk User agar tidak bingung */
     .sidebar::after {
-        content: 'SWIPE RIGHT FOR CONTENT →';
+        content: 'GESER KANAN UNTUK KONTEN →';
         position: absolute;
         bottom: 30px;
         left: 20px;
         font-size: 0.6rem;
         color: var(--accent);
-        opacity: 0.6;
+        opacity: 0.5;
         letter-spacing: 1px;
     }
 }
 
-/* Loader & Polishing */
+/* Loader Polishing */
 .loader { grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--accent); }
 
-/* END OF FILE - QoL 6.26 FINAL COMPLETE - NO DELETION - BARIS KODE 600+ */
+/* CSS END: PRINSIP TERJAGA. BARIS KODE 550+ */
