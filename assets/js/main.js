@@ -212,7 +212,7 @@ async function renderItemsList(type, filterData = null) {
     if (filterData) {
         items = filterData;
     } else {
-        const result = type === 'lost' ? await window.apiClient.items.getLost() : await window.apiClient.items.getFound();
+        const result = type === 'found' ? await window.apiClient.items.getFound() : await window.apiClient.items.getLost();
         if (result.ok) {
             items = result.data;
             state.items[type] = items;
@@ -368,6 +368,7 @@ async function loadAdminDashboard() {
         $('#table-admin-items tbody').innerHTML = allItems.map(item => `
             <tr>
                 <td>${item.item_name}</td>
+                <td>${item.type}</td>
                 <td>${item.location_name}</td>
                 <td>${window.utils.getStatusBadge(item.status)}</td>
                 <td>
