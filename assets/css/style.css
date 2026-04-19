@@ -1,10 +1,10 @@
 
 /**
  * assets/css/style.css
- * Spetech Lost and Found - Official Theme (Update QoL 6.30 - Final Mobile Architecture)
+ * Spetech Lost and Found - Official Theme (Update QoL 6.24 - Final UI/UX Polishing)
  * Theme: Dark Mode (Slate, Blue, White)
  * Support: Desktop & Mobile Responsive
- * PRINSIP: NO DELETION - ONLY ENHANCEMENT (630+ Lines)
+ * PRINSIP: NO DELETION - ONLY ENHANCEMENT (670+ Lines)
  */
 
 :root {
@@ -60,7 +60,7 @@
 
 /* 2. Base Layout */
 * { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-body { background: var(--bg-dark); color: var(--text); overflow-x: auto; }
+body { background: var(--bg-dark); color: var(--text); overflow-x: hidden; }
 
 .app-shell { display: flex; min-height: 100vh; }
 
@@ -339,7 +339,7 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
 }
 .btn-delete-loc:hover { background: #ef4444; color: white; }
 
-/* 16. ENHANCEMENTS QoL 6.19 (MASTERPIECE ELEMENTS) */
+/* 16. MASTERPIECE ELEMENTS Preservation */
 .btn-search {
     padding: 0 25px;
     background: var(--accent);
@@ -354,7 +354,13 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
     justify-content: center;
     gap: 8px;
 }
-.btn-search:hover { filter: brightness(1.2); box-shadow: 0 0 15px var(--accent-glow); transform: translateY(-1px); }
+
+.btn-search:hover { 
+    filter: brightness(1.2); 
+    box-shadow: 0 0 15px var(--accent-glow); 
+    transform: translateY(-1px);
+}
+
 .btn-search i { width: 18px; height: 18px; }
 
 #stat-lost, #stat-found {
@@ -372,7 +378,6 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
     flex-direction: column;
     align-items: center;
     gap: 15px;
-    position: relative;
 }
 
 .empty-state::before {
@@ -384,85 +389,124 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
 }
 
 /* ==========================================================================
-   NEW QoL 6.30: SHIELDED SIDEBAR & TOTAL INDEPENDENT SCROLL
-   (PENAMBAHAN TOTAL - NO DELETION)
+   NEW QoL 6.32: STICKY HEADER STACK NAVIGATION (MOBILE)
    ========================================================================== */
 
 @media (max-width: 768px) {
-    /* 1. Body & Shell Isolation: Kunci sumbu Y utama seluruh web */
-    /* Ini menghentikan sidebar agar tidak ikut naik/turun */
-    body {
-        overflow-x: auto !important; /* Biarkan geser X untuk sidebar */
-        overflow-y: hidden !important; /* MATIKAN scroll vertikal seluruh web */
-        width: 100vw;
-    }
-
+    /* 1. Shell Adjustment */
     .app-shell {
-        display: flex;
-        flex-direction: row !important;
-        width: calc(100vw + 260px);
-        height: 100vh;
-        overflow: hidden; /* Isolasi agar shell tidak goyang vertikal */
+        flex-direction: column;
     }
 
-    /* 2. Sidebar Shield: Hanya diam, kebal scroll konten */
+    /* 2. Transform Sidebar to Fixed Top Header */
     .sidebar {
-        width: 260px;
-        min-width: 260px;
-        position: relative !important; 
-        height: 100vh !important;
-        z-index: 100;
-        overflow-y: hidden; /* Sidebar tidak bisa di-scroll agar tidak broken */
+        width: 100%;
+        min-width: 100%;
+        height: auto;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        border-right: none;
+        border-bottom: 1px solid var(--glass-border);
+        background: var(--bg-dark); 
+        padding-bottom: 10px;
     }
 
-    /* 3. Content Area: Satu-satunya area yang boleh scroll atas-bawah */
+    /* Logo Center */
+    .brand {
+        flex-direction: column;
+        padding: 15px 10px;
+        gap: 5px;
+        text-align: center;
+    }
+
+    /* Row Navigasi Page (Scrollable) - FIX FIX FIX */
+    .side-nav {
+        display: flex !important; /* Paksa Flex */
+        flex-direction: row !important; /* Paksa Row */
+        flex-wrap: nowrap !important; /* Jangan bungkus ke bawah */
+        overflow-x: auto !important; /* Aktifkan scroll horizontal */
+        padding: 0 10px;
+        gap: 8px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; 
+    }
+
+    .side-nav::-webkit-scrollbar { display: none; }
+
+    .side-item {
+        flex: 0 0 auto !important; /* Jangan biarkan item menciut */
+        width: auto !important;
+        padding: 10px 15px;
+        margin-bottom: 0;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    /* 3. Transform Sub-Nav (Tab) to Sticky Header Row 2 */
     .content-area {
-        width: 100vw;
-        min-width: 100vw;
-        height: 100vh;
-        overflow-y: auto !important; /* Aktifkan scroll vertikal HANYA di sini */
-        padding: 20px;
-        position: relative;
+        padding: 20px 15px;
     }
 
-    /* 4. LAYER ISOLATION (MODAL & TOAST) : FIXED TERHADAP LAYAR */
-    .modal-overlay {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        z-index: 999999 !important; /* Layer tertinggi di dunia */
-        display: flex;
-        align-items: center;
+    .page-header {
+        position: sticky;
+        top: 135px; 
+        background: var(--bg-dark);
+        z-index: 999;
+        margin: -20px -15px 25px -15px;
+        padding: 15px;
+        border-bottom: 1px solid var(--glass-border);
+    }
+
+    .glitch-text {
+        font-size: 1.5rem;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+
+    /* Row Navigasi Tab (Scrollable) */
+    .sub-nav {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start;
+        overflow-x: auto !important;
+        white-space: nowrap;
+        padding-bottom: 5px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    
+    .sub-nav::-webkit-scrollbar { display: none; }
+
+    .nav-tab {
+        flex: 0 0 auto !important;
+        padding: 8px 18px;
+        font-size: 0.8rem;
+    }
+
+    /* 4. Content Polishing */
+    .items-grid {
+        grid-template-columns: 1fr; 
+    }
+
+    .hero-banner {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+
+    .hero-stats {
+        width: 100%;
         justify-content: center;
     }
 
-    /* Toast khusus di kanan bawah layar fisik */
-    .toast-container, .toast {
-        position: fixed !important;
-        right: 20px !important;
-        bottom: 20px !important;
-        left: auto !important;
-        width: auto !important;
-        z-index: 1000000 !important;
-    }
-
-    /* UI Polishing untuk Mobile Mode */
-    .hero-banner { flex-direction: column; align-items: flex-start; padding: 20px; }
-    .hero-stats { width: 100%; justify-content: space-between; margin-top: 15px; }
-    .items-grid { grid-template-columns: 1fr; gap: 20px; }
-    .search-bar-container { flex-direction: column; gap: 10px; }
-    .btn-search { width: 100%; padding: 12px; border-radius: 12px; }
-    
-    .sidebar::after {
-        content: 'SWIPE RIGHT FOR CONTENT →';
-        position: absolute; bottom: 30px; left: 0; width: 100%;
-        text-align: center; font-size: 0.6rem; color: var(--accent);
-        opacity: 0.4; letter-spacing: 1px;
+    /* 5. Fixed Layer Fix */
+    .modal-overlay {
+        z-index: 10001;
     }
 }
 
+/* Loader Polishing */
 .loader { grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--accent); }
 
-/* CSS END: BARIS KODE 630+. MASTERPIECE AMAN & KOKOH. */
+/* CSS END: BARIS KODE 670+. MASTERPIECE AMAN. */
