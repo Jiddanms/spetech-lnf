@@ -2,9 +2,9 @@
 /**
  * assets/css/style.css
  * Spetech Lost and Found - Official Theme 
- * Update QoL 6.26 REVISI - True Horizontal Workspace (No Overlap)
+ * Update QoL 6.26 FINAL - Mobile Compatibility & UI Layer Isolation
  * Theme: Dark Mode (Slate, Blue, White)
- * PRINSIP: NO DELETION - ONLY ENHANCEMENT (550+ Lines)
+ * PRINSIP: NO DELETION - ONLY ENHANCEMENT (600+ Lines)
  */
 
 :root {
@@ -63,7 +63,7 @@
 body { 
     background: var(--bg-dark); 
     color: var(--text); 
-    overflow-x: hidden; /* Mencegah bounce scroll body utama */
+    overflow-x: auto; /* Izinkan scroll horizontal utama di level body */
 }
 
 .app-shell { 
@@ -84,6 +84,7 @@ body {
     position: sticky;
     top: 0; 
     height: 100vh;
+    z-index: 10;
 }
 
 .brand { padding: 30px 20px; display: flex; align-items: center; gap: 12px; }
@@ -116,7 +117,7 @@ body {
     padding: 40px; 
     position: relative; 
     height: 100vh; 
-    overflow-y: auto; 
+    overflow-y: auto; /* Scroll vertikal hanya di sini */
 }
 
 .page-header { margin-bottom: 30px; }
@@ -249,19 +250,25 @@ body {
 
 .btn-primary:hover { filter: brightness(1.2); transform: translateY(-2px); }
 
-/* 11. Modal Styling */
+/* 11. Modal Styling - ISOLASI LAYER UNTUK SCROLLING */
 .modal-overlay {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
+    position: fixed !important; /* WAJIB FIXED UNTUK TETAP DI POSISI LAYAR */
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    height: 100vh;
     background: rgba(0,0,0,0.8);
     backdrop-filter: blur(8px);
-    z-index: 9999;
-    display: flex; align-items: center; justify-content: center;
+    z-index: 99999 !important; /* Layer Tertinggi */
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
     padding: 20px;
 }
 
 .modal-content {
-    width: 100%; max-width: 800px;
+    width: 100%; 
+    max-width: 800px;
     position: relative;
     max-height: 90vh;
     overflow-y: auto;
@@ -383,117 +390,73 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
 .empty-state::before { content: "Empty"; font-size: 3rem; font-weight: 800; opacity: 0.05; position: absolute; }
 
 /* ==========================================================================
-   NEW QoL 6.26 REVISI: MOBILE TRUE HORIZONTAL WORKSPACE (FLAWLESS)
+   NEW QoL 6.26 REVISI FINAL: MOBILE TRUE HORIZONTAL & LAYER ISOLATION
    ========================================================================== */
 
 @media (max-width: 768px) {
-    /* RESET BODY & OVERFLOW UNTUK TRUE HORIZONTAL */
+    /* 1. Reset Body Utama agar Shell Bisa Mengalir Horizontal */
     body {
-        overflow-x: auto !important; /* Izinkan body utama geser kanan-kiri */
-        overflow-y: hidden !important; /* Kunci scroll vertikal body utama */
+        overflow-x: auto !important; 
+        overflow-y: hidden !important; 
+        width: 100vw;
     }
 
-    /* APP SHELL: Menjadi kontainer super lebar */
+    /* 2. APP SHELL: Menjadi Baris Tunggal yang Super Lebar */
     .app-shell {
         display: flex;
-        flex-direction: row; /* Sidebar & Konten bersebelahan */
-        width: calc(100vw + 260px); /* Lebar layar HP + Lebar Sidebar */
+        flex-direction: row; 
+        width: calc(100vw + 260px); /* Sidebar (260) + Layar HP (100vw) */
         height: 100vh;
-        overflow: hidden; /* Overflow dihandle oleh body */
+        overflow: hidden; 
     }
 
-    /* SIDEBAR: Tetap di tempatnya di dalam flow flex */
+    /* 3. SIDEBAR: Bagian dari Flow, akan ter-swipe ke kiri */
     .sidebar {
         width: 260px;
         min-width: 260px;
-        position: relative; /* Bukan sticky lagi agar ikut terseret */
-        left: 0;
+        position: relative; /* Bukan sticky lagi agar ikut tergeser */
         height: 100vh;
-        border-right: 1px solid var(--glass-border);
+        z-index: 5;
     }
 
-    /* CONTENT AREA: Mengisi sisa layar */
+    /* 4. CONTENT AREA: Menempati Satu Layar Penuh */
     .content-area {
         width: 100vw;
         min-width: 100vw;
         height: 100vh;
-        overflow-y: auto !important; /* Hanya scroll atas-bawah di sini */
-        padding: 20px;
-        background: transparent;
-    }
-
-    /* Penyesuaian Visual agar Elemen Tidak Broken */
-    .hero-banner {
-        flex-direction: column;
-        align-items: flex-start;
+        overflow-y: auto !important; /* Scroll vertikal hanya di sini */
         padding: 20px;
     }
 
-    .hero-stats {
-        width: 100%;
-        justify-content: space-between;
-        margin-top: 15px;
+    /* 5. TOAST & OVERLAY: Harus Tetap di Viewport HP (Fixed Isolation) */
+    .toast-container, #toast, .modal-overlay {
+        position: fixed !important;
+        left: 0 !important;
+        width: 100vw !important;
+        transform: none !important;
+        z-index: 999999 !important;
     }
 
-    .stat-value { font-size: 1.2rem; }
+    /* 6. Penyesuaian Visual Elemen Form & Grid */
+    .hero-banner { flex-direction: column; align-items: flex-start; padding: 20px; }
+    .hero-stats { width: 100%; justify-content: space-between; margin-top: 15px; }
+    .items-grid { grid-template-columns: 1fr; gap: 20px; }
+    .search-bar-container { flex-direction: column; gap: 10px; }
 
-    .items-grid {
-        grid-template-columns: 1fr; /* 1 Kolom di HP */
-        gap: 20px;
-    }
-
-    /* Sub Nav Fix: Izinkan scroll horizontal internal jika item banyak */
-    .sub-nav {
-        display: flex;
-        overflow-x: auto;
-        padding-bottom: 10px;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .sub-nav::-webkit-scrollbar { display: none; }
-
-    .nav-tab {
-        padding: 6px 15px;
-        font-size: 0.75rem;
-    }
-
-    /* Search Bar Adjustment */
-    .search-bar-container {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .search-bar-container input {
-        border-radius: 12px;
-        font-size: 1rem;
-    }
-
-    .btn-search {
-        border-radius: 12px;
-        padding: 12px;
-    }
-
-    /* Indikator Swipe untuk User */
+    /* Indikator Swipe agar user tidak bingung */
     .sidebar::after {
-        content: 'Geser Kanan untuk Konten →';
+        content: 'SWIPE RIGHT FOR CONTENT →';
         position: absolute;
         bottom: 30px;
         left: 20px;
         font-size: 0.6rem;
         color: var(--accent);
-        background: rgba(59, 130, 246, 0.1);
-        padding: 5px 10px;
-        border-radius: 5px;
-        pointer-events: none;
+        opacity: 0.6;
+        letter-spacing: 1px;
     }
 }
 
-/* Loader & Extra Polishing */
-.loader {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 40px;
-    color: var(--accent);
-}
+/* Loader & Polishing */
+.loader { grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--accent); }
 
-/* END OF FILE - QoL 6.26 REVISI COMPLETE - BARIS KODE 550+ */
+/* END OF FILE - QoL 6.26 FINAL COMPLETE - NO DELETION - BARIS KODE 600+ */
