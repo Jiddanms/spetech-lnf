@@ -4,7 +4,7 @@
  * Spetech Lost and Found - Official Theme (Update QoL 6.30 - Final Mobile Architecture)
  * Theme: Dark Mode (Slate, Blue, White)
  * Support: Desktop & Mobile Responsive
- * PRINSIP: NO DELETION - ONLY ENHANCEMENT (600+ Lines)
+ * PRINSIP: NO DELETION - ONLY ENHANCEMENT (630+ Lines)
  */
 
 :root {
@@ -375,65 +375,94 @@ td { padding: 15px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255
     position: relative;
 }
 
+.empty-state::before {
+    content: "Empty";
+    font-size: 3rem;
+    font-weight: 800;
+    opacity: 0.05;
+    position: absolute;
+}
+
 /* ==========================================================================
-   NEW QoL 6.30: SHIELDED SIDEBAR & INDEPENDENT CONTENT SCROLL
+   NEW QoL 6.30: SHIELDED SIDEBAR & TOTAL INDEPENDENT SCROLL
    (PENAMBAHAN TOTAL - NO DELETION)
    ========================================================================== */
 
 @media (max-width: 768px) {
-    /* 1. Body Isolation: Kunci sumbu Y utama */
+    /* 1. Body & Shell Isolation: Kunci sumbu Y utama seluruh web */
+    /* Ini menghentikan sidebar agar tidak ikut naik/turun */
     body {
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
+        overflow-x: auto !important; /* Biarkan geser X untuk sidebar */
+        overflow-y: hidden !important; /* MATIKAN scroll vertikal seluruh web */
         width: 100vw;
     }
 
-    /* 2. App Shell: Workspace Mendatar */
     .app-shell {
         display: flex;
         flex-direction: row !important;
         width: calc(100vw + 260px);
         height: 100vh;
-        overflow: hidden;
+        overflow: hidden; /* Isolasi agar shell tidak goyang vertikal */
     }
 
-    /* 3. Sidebar Shield: Tetap Utuh, Tidak Boleh Ikut Scroll Konten */
+    /* 2. Sidebar Shield: Hanya diam, kebal scroll konten */
     .sidebar {
         width: 260px;
         min-width: 260px;
-        position: relative !important;
+        position: relative !important; 
         height: 100vh !important;
         z-index: 100;
-        overflow-y: auto;
+        overflow-y: hidden; /* Sidebar tidak bisa di-scroll agar tidak broken */
     }
 
-    /* 4. Content Area: Independent Vertical Scroll */
-    /* Area ini yang akan tenggelam/scroll tanpa merusak sidebar */
+    /* 3. Content Area: Satu-satunya area yang boleh scroll atas-bawah */
     .content-area {
         width: 100vw;
         min-width: 100vw;
         height: 100vh;
-        overflow-y: auto !important;
+        overflow-y: auto !important; /* Aktifkan scroll vertikal HANYA di sini */
         padding: 20px;
         position: relative;
     }
 
-    /* Fix Popups agar tetap Fixed di Layar HP */
-    .modal-overlay, .toast-container {
+    /* 4. LAYER ISOLATION (MODAL & TOAST) : FIXED TERHADAP LAYAR */
+    .modal-overlay {
         position: fixed !important;
+        top: 0 !important;
         left: 0 !important;
         width: 100vw !important;
-        z-index: 999999 !important;
+        height: 100vh !important;
+        z-index: 999999 !important; /* Layer tertinggi di dunia */
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    /* Responsive Masterpiece preservation */
+    /* Toast khusus di kanan bawah layar fisik */
+    .toast-container, .toast {
+        position: fixed !important;
+        right: 20px !important;
+        bottom: 20px !important;
+        left: auto !important;
+        width: auto !important;
+        z-index: 1000000 !important;
+    }
+
+    /* UI Polishing untuk Mobile Mode */
     .hero-banner { flex-direction: column; align-items: flex-start; padding: 20px; }
     .hero-stats { width: 100%; justify-content: space-between; margin-top: 15px; }
     .items-grid { grid-template-columns: 1fr; gap: 20px; }
     .search-bar-container { flex-direction: column; gap: 10px; }
     .btn-search { width: 100%; padding: 12px; border-radius: 12px; }
+    
+    .sidebar::after {
+        content: 'SWIPE RIGHT FOR CONTENT →';
+        position: absolute; bottom: 30px; left: 0; width: 100%;
+        text-align: center; font-size: 0.6rem; color: var(--accent);
+        opacity: 0.4; letter-spacing: 1px;
+    }
 }
 
 .loader { grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--accent); }
 
-/* CSS END: BARIS KODE 600+. MASTERPIECE AMAN. */
+/* CSS END: BARIS KODE 630+. MASTERPIECE AMAN & KOKOH. */
