@@ -113,12 +113,12 @@
 
                 <div id="sub-lost-list" class="sub-container">
                     <div class="search-bar-container">
-                        <input type="text" id="search-lost" placeholder="Cari nama barang yang hilang..." class="glass-input">
-                        <button type="button" class="btn-search" onclick="handleSearch('lost')">
+                        <input type="text" id="search-found-in-lost" placeholder="Cari barang yang sudah ditemukan..." class="glass-input">
+                        <button type="button" class="btn-search" onclick="handleSearch('found')">
                             <i data-lucide="search"></i> Cari
                         </button>
                     </div>
-                    <div id="lost-items-grid" class="items-grid">
+                    <div id="found-items-grid" class="items-grid">
                         </div>
                 </div>
 
@@ -192,12 +192,12 @@
 
                 <div id="sub-found-list" class="sub-container hidden">
                     <div class="search-bar-container">
-                        <input type="text" id="search-found" placeholder="Cari laporan kehilangan..." class="glass-input">
-                        <button type="button" class="btn-search" onclick="handleSearch('found')">
+                        <input type="text" id="search-lost-in-found" placeholder="Cari laporan kehilangan barang..." class="glass-input">
+                        <button type="button" class="btn-search" onclick="handleSearch('lost')">
                             <i data-lucide="search"></i> Cari
                         </button>
                     </div>
-                    <div id="found-items-grid" class="items-grid">
+                    <div id="lost-items-grid" class="items-grid">
                         </div>
                 </div>
             </section>

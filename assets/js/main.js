@@ -5,7 +5,8 @@
  * Integrasi Penuh: Backend Cloudflare Workers & D1 Database
  * UPDATE QoL 6.18: Total Location Management & Dynamic Background Switch
  * UPDATE QoL 6.19: Dynamic Stats, Search Engine & Auth Text Fix
- * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (600+ Lines)
+ * UPDATE QoL 6.24: The Great Logic Swap (Lost searches Found, Found searches Lost)
+ * PRINSIP: NO DELETION - ALL ORIGINAL CODE PRESERVED (630+ Lines)
  */
 
 // 1. Konfigurasi State Aplikasi
@@ -99,6 +100,11 @@ function switchSubPage(parentPage, subId) {
     // Content Visibility
     $$(`#page-${parentPage} .sub-container`).forEach(sp => sp.classList.add('hidden'));
     $(`#sub-${parentPage}-${targetSub}`)?.classList.remove('hidden');
+    
+    // QoL 6.24: Reload data saat pindah tab untuk memastikan list terbaru
+    if (targetSub === 'list') {
+        loadPageData(parentPage);
+    }
 }
 
 /**
@@ -111,10 +117,12 @@ async function loadPageData(pageId) {
                 await loadRecentLists();
                 break;
             case 'lost':
-                await renderItemsList('lost');
+                // QoL 6.24: Di page Lost, kita merender list barang temuan (found)
+                await renderItemsList('found'); 
                 break;
             case 'found':
-                await renderItemsList('found');
+                // QoL 6.24: Di page Found, kita merender list laporan kehilangan (lost)
+                await renderItemsList('lost');
                 break;
             case 'lokasi':
                 await renderLocationGrid();
@@ -184,7 +192,6 @@ async function loadRecentLists() {
     const resLost = await window.apiClient.items.getLost();
     const resFound = await window.apiClient.items.getFound();
     
-    // Update Stats 0 -> Real Count
     if (resLost.ok) {
         state.items.lost = resLost.data;
         if ($('#stat-lost')) $('#stat-lost').innerText = resLost.data.length;
@@ -203,10 +210,11 @@ async function loadRecentLists() {
 }
 
 async function renderItemsList(type, filterData = null) {
+    // QoL 6.24: Target grid sekarang statis sesuai tipe data, meskipun diletakkan di page yang berbeda
     const container = $(`#${type}-items-grid`);
     if (!container) return;
     
-    container.innerHTML = '<div class="loader"> . </div>';
+    container.innerHTML = '<div class="loader">Menghubungkan ke database...</div>';
     
     let items = [];
     if (filterData) {
@@ -222,7 +230,7 @@ async function renderItemsList(type, filterData = null) {
     if (items.length > 0) {
         container.innerHTML = items.map(item => createItemCard(item)).join('');
     } else {
-        container.innerHTML = `<div class="empty-state">Belum ada data ${type} yang ditemukan.</div>`;
+        container.innerHTML = `<div class="empty-state">Belum ada data ${type === 'lost' ? 'kehilangan' : 'barang temuan'} yang tersedia.</div>`;
     }
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -332,17 +340,21 @@ async function handleReport(type) {
     if (res.ok) {
         window.utils.showToast("Laporan terkirim!", "success");
         form.reset();
+        // QoL 6.24: Setelah lapor, tetap arahkan ke tab list yang relevan
         switchSubPage(type, 'list');
-        renderItemsList(type);
+        loadPageData(type); 
     } else {
         window.utils.showToast(res.data.error || "Terjadi kesalahan koneksi ke server.", "error");
     }
     btn.disabled = false; btn.innerText = "Kirim Laporan";
 }
 
-// FIX QoL 6.19: SEARCH ENGINE LOGIC
+// FIX QoL 6.19/6.24: SEARCH ENGINE LOGIC
 async function handleSearch(type) {
-    const query = $(`#search-${type}`).value.toLowerCase();
+    // Tipe di sini adalah tipe data yang sedang dicari (lost/found)
+    const inputId = type === 'found' ? 'search-found-in-lost' : 'search-lost-in-found';
+    const query = $(`#${inputId}`)?.value.toLowerCase();
+    
     if (!query) return renderItemsList(type);
     
     const filtered = state.items[type].filter(item => 
@@ -535,7 +547,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (session.ok && session.data.loggedIn) {
         state.user = session.data.user;
         
-        // FIX QoL 6.19: Login to Logout Text Consistency
         const sideAccount = $('#side-account-text');
         if (sideAccount) sideAccount.innerText = "Logout";
         
@@ -552,7 +563,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPageData('home');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // 9d. Event Bindings (FIX QoL 6.19: All Bindings Included)
+    // 9d. Event Bindings
     $('#btn-login-action')?.addEventListener('click', handleLogin);
     $('#btn-register-action')?.addEventListener('click', handleRegister);
     $('#btn-logout-action')?.addEventListener('click', handleLogout);
@@ -560,9 +571,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('#btn-submit-found')?.addEventListener('click', () => handleReport('found'));
     $('#btn-add-location-action')?.addEventListener('click', handleAddLocation);
     
-    // FIX QoL 6.19: Search Bindings
-    $('#search-lost')?.addEventListener('input', () => handleSearch('lost'));
-    $('#search-found')?.addEventListener('input', () => handleSearch('found'));
+    // QoL 6.24: Search Bindings dengan ID Baru yang di-Swap di index.html
+    $('#search-found-in-lost')?.addEventListener('input', () => handleSearch('found'));
+    $('#search-lost-in-found')?.addEventListener('input', () => handleSearch('lost'));
     
     document.addEventListener('change', (e) => {
         if (e.target.name === 'location_name' || e.target.classList.contains('location-selector')) {
