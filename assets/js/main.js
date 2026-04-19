@@ -318,6 +318,8 @@ async function handleReport(type) {
         return window.utils.showToast("Field utama wajib diisi!", "error");
     }
 
+    payload.created_at = new Date().toISOString();
+
     const btn = $(`#btn-submit-${type}`);
     btn.disabled = true; btn.innerText = "Mengompresi...";
 

@@ -22,16 +22,20 @@ const utils = {
      */
     formatDate: (dateString) => {
         if (!dateString) return '-';
+        
         const date = new Date(dateString); 
+        if (isNaN(date.getTime())) return dateString; // Fallback jika data bukan tanggal
+
+        // Menggunakan Intl.DateTimeFormat agar Masterpiece (bersih & akurat)
         return new Intl.DateTimeFormat('id-ID', {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-            hour12: false,
-            timeZone: 'Asia/Jakarta'
-        }).format(date);
+            hourCycle: 'h23', // Format 24 Jam
+            timeZone: 'Asia/Jakarta' // Paksa hitung ke waktu Indonesia Barat
+        }).format(date).replace(/\./g, ':'); // Pastikan pemisah jam adalah ':' bukan '.'
     },
 
     /**
