@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spetech Lost and Found | SMP Techno</title>
+    <link rel="icon" type="image/png" href="assets/img/favicon.png">
     
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -81,21 +82,21 @@
                     <div class="guide-grid">
                         <div class="guide-card glass-card" onclick="switchPage('lost')">
                             <div class="guide-icon lost"><i data-lucide="help-circle"></i></div>
-                            <h3>Barang Hilang?</h3>
-                            <p>Cek daftar penemuan atau buat laporan kehilangan baru.</p>
-                            <span class="guide-link">Buka Laporan <i data-lucide="arrow-right"></i></span>
+                            <h3>Kehilangan Barang?</h3>
+                            <p>Cek halaman Lost untuk daftar penemuan atau buat laporan kehilangan baru.</p>
+                            <span class="guide-link">Halaman Lost <i data-lucide="arrow-right"></i></span>
                         </div>
                         <div class="guide-card glass-card" onclick="switchPage('found')">
                             <div class="guide-icon found"><i data-lucide="check-circle"></i></div>
-                            <h3>Temukan Barang?</h3>
-                            <p>Laporkan barang yang kamu temukan agar cepat kembali.</p>
-                            <span class="guide-link">Laporkan Sekarang <i data-lucide="arrow-right"></i></span>
+                            <h3>Menemukan Barang?</h3>
+                            <p>Pergi ke halaman Found untuk laporkan barang yang kamu temukan atau cari orang yang kehilangan barang serupa.</p>
+                            <span class="guide-link">Halaman Found <i data-lucide="arrow-right"></i></span>
                         </div>
                         <div class="guide-card glass-card" onclick="switchPage('lokasi')">
                             <div class="guide-icon admin" style="background: var(--info);"><i data-lucide="map"></i></div>
                             <h3>Cek Lokasi</h3>
-                            <p>Lihat daftar gedung dan titik penemuan barang.</p>
-                            <span class="guide-link">Lihat Lokasi <i data-lucide="arrow-right"></i></span>
+                            <p>Lihat daftar gedung dan titik penemuan barang yang tersedia saat ini.</p>
+                            <span class="guide-link">Daftar Lokasi <i data-lucide="arrow-right"></i></span>
                         </div>
                     </div>
                 </div>
@@ -117,7 +118,7 @@
                             <i data-lucide="search"></i> Cari
                         </button>
                     </div>
-                    <div id="lost-items-grid" class="items-grid">
+                    <div id="found-items-grid" class="items-grid">
                         </div>
                 </div>
 
@@ -196,7 +197,7 @@
                             <i data-lucide="search"></i> Cari
                         </button>
                     </div>
-                    <div id="found-items-grid" class="items-grid">
+                    <div id="lost-items-grid" class="items-grid">
                         </div>
                 </div>
             </section>
