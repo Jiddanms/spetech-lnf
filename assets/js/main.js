@@ -206,7 +206,7 @@ async function renderItemsList(type, filterData = null) {
     const container = $(`#${type}-items-grid`);
     if (!container) return;
     
-    container.innerHTML = '<div class="loader"> </div>';
+    container.innerHTML = '<div class="loader"> . </div>';
     
     let items = [];
     if (filterData) {
@@ -488,6 +488,7 @@ async function viewDetail(id) {
             <h3>${item.item_name}</h3>
             <div style="margin-top:15px; color:var(--text-dim); display:flex; flex-direction:column; gap:10px;">
                 <p><strong>Status:</strong> ${window.utils.getStatusBadge(item.status)}</p>
+                <p><strong>Tipe Laporan:</strong> ${item.type}</p>
                 <p><strong>Lokasi:</strong> ${item.location_name}</p>
                 <p><strong>Reporter:</strong> ${item.reporter_name}</p>
                 <p><strong>Waktu:</strong> ${window.utils.formatDate(item.created_at)}</p>
