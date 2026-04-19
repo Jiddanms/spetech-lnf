@@ -540,8 +540,9 @@ const updateBackground = (locationName) => {
  * 9. INITIAL LOAD
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    const savedBg = localStorage.getItem('sp_current_bg');
-    $('#bg-overlay').style.backgroundImage = savedBg ? `url('${savedBg}')` : "url('assets/img/bg-home.jpg')";
+    // QoL 6.33: Reset background cache jika tidak valid atau paksa ke default saat startup
+    localStorage.removeItem('sp_current_bg'); // Hapus cache lama agar tidak jadi hantu
+    $('#bg-overlay').style.backgroundImage = "url('assets/img/bg-home.jpg')"; // Paksa ke default
 
     const session = await window.apiClient.auth.checkSession();
     if (session.ok && session.data.loggedIn) {
